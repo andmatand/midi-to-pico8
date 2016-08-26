@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.5
 
 import math
 from midi import midi
@@ -53,14 +53,21 @@ i = 0
 for patternIndex in range(64):
     for noteIndex in range(32):
         note = picoNotes[i]
+        i += 1
 
+        cart.sfx.set_properties(patternIndex, note_duration=14)
         cart.sfx.set_note(patternIndex, noteIndex,
                          pitch = note['pitch'],
                          volume = note['volume'],
                          waveform = 0)
 
-with open(CART_PATH, 'wb') as outfile:
-    cart.to_p8_file(outfile)
+sfxIndex = 0
+for musicIndex in range(64):
+    cart.music.set_channel(musicIndex, 0, sfxIndex)
+    sfxIndex += 1
+
+with open(CART_PATH, 'w', encoding='utf-8') as fh:
+    cart.to_p8_file(fh)
 
 #print(cart.sfx.get_note(0, 0))
 #print(cart.sfx.get_note(0, 8))
