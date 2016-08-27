@@ -29,13 +29,20 @@ pico8Config = {
 # g in MIDI: 67
 # MIDI pitch - 36 = pico8 pitch
 
-#ticksPerQuarterNote = m.tracks[0].events[1].data[2]
-#print(ticksPerQuarterNote = m.tracks[0].events[1].data[2])
-
 def get_tracks():
     m = midi.MidiFile()
     m.open(path)
     m.read()
+
+    for event in m.tracks[0].events:
+        if event.type == 'TIME_SIGNATURE':
+            #print(event.data)
+            ppq = event.data[2] * 10
+            print('setting ticksPerQuarterNote to {0}'.format(ppq))
+            midiConfig['ticksPerQuarterNote'] = ppq
+            break
+
+    #print(m.tracks[0].events[1].data[2])
 
     picoTracks = []
 
@@ -114,6 +121,10 @@ for t, track in enumerate(tracks):
             # Move to the next PICO-8 SFX
             sfxIndex += 1
 
+            if sfxIndex > PICO8_MAX_SFX - 1:
+                print('reached max SFX')
+                break
+
             # Set the SFX note duration
             cart.sfx.set_properties(
                     sfxIndex,
@@ -126,7 +137,7 @@ for t, track in enumerate(tracks):
             musicIndex += 1
             cart.music.set_channel(musicIndex, t, sfxIndex)
 
-        if note != None:
+        if note != None and note['pitch'] > 0:
             # Add this note to the current PICO-8 SFX
             cart.sfx.set_note(
                     sfxIndex,
