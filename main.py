@@ -51,6 +51,14 @@ def get_tracks():
                 timeDelta = event.time - previousTime
                 previousNoteLen = timeDelta / midiConfig['ticksPerQuarterNote']
                 picoNoteCount = int(previousNoteLen * 8)
+
+                # If there was no previous note already added, and we are going
+                # to add "repetitions" of the note
+                if len(picoNotes) == 0 and picoNoteCount > 0:
+                    # Add the "first" instance of the note
+                    picoNotes.append(previousPicoNote)
+
+                # Repeat the note as necessary
                 for i in range(picoNoteCount - 1):
                     picoNotes.append(previousPicoNote)
 
@@ -78,10 +86,6 @@ cart.lua.update_from_lines(lines)
 
 tracks = get_tracks()
 
-# DEBUG
-#print(tracks)
-#sys.exit(0)
-
 sfxIndex = -1
 for t, track in enumerate(tracks):
     if t > PICO8_MAX_CHANNELS - 1:
@@ -92,12 +96,11 @@ for t, track in enumerate(tracks):
     musicIndex = -1
     trackSfxCount = 0
 
-    print('new track')
-    print(len(track))
+    print('track {0}'.format(t))
 
     # Write the notes to a series of PICO-8 SFXes
-    for n, note in enumerate(track):
-        if noteIndex < PICO8_MAX_NOTES_PER_SFX:
+    for note in track:
+        if noteIndex < PICO8_MAX_NOTES_PER_SFX - 1:
             noteIndex += 1
         else:
             noteIndex = 0
@@ -110,7 +113,6 @@ for t, track in enumerate(tracks):
 
             # Move to the next PICO-8 SFX
             sfxIndex += 1
-            print('moving to sfx ' + str(sfxIndex))
 
             # Set the SFX note duration
             cart.sfx.set_properties(
