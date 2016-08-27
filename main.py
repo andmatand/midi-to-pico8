@@ -1,16 +1,28 @@
 #!/usr/bin/env python3.5
 
 import math
+import sys
 from midi import midi
 from pico8.game import game
 
+# Constants
+PICO8_MAX_CHANNELS = 4
+PICO8_MAX_NOTES_PER_SFX = 32
+PICO8_MAX_SFX = 64
+
+# Song-Specific Config
 path = 'bwv578.mid'
 CART_PATH = 'bwv578.p8'
+midiConfig = {
+    'numTracks': 4,
+    'ticksPerQuarterNote': 240
+}
+pico8Config = {
+    'noteDuration': 14,
+    'maxSfxPerTrack': PICO8_MAX_SFX / midiConfig['numTracks'],
+    'waveforms': [1, 2, 3, 4],
+}
 
-m = midi.MidiFile()
-m.open(path)
-m.read()
-#print(m.tracks[1])
 
 # lowest midi pitch: 43
 # g in pico8: 31
@@ -19,52 +31,104 @@ m.read()
 
 #ticksPerQuarterNote = m.tracks[0].events[1].data[2]
 #print(ticksPerQuarterNote = m.tracks[0].events[1].data[2])
-ticksPerQuarterNote = 240
 
-picoNotes = []
-previousTime = 0
-previousPicoNote = None
+def get_tracks():
+    m = midi.MidiFile()
+    m.open(path)
+    m.read()
 
-for event in m.tracks[1].events:
-    if event.type == 'NOTE_ON' and event.velocity > 0:
-        #print(event)
+    picoTracks = []
 
-        # Repeat the previous PICO-8 note as necessary to match the length of the MIDI note
-        previousNoteLength = (event.time - previousTime) / ticksPerQuarterNote
-        picoNoteCount = int(previousNoteLength * 8)
-        for i in range(picoNoteCount - 1):
-            picoNotes.append(previousPicoNote)
+    for t, track in enumerate(m.tracks):
+        picoNotes = []
+        previousTime = 0
+        previousPicoNote = None
 
-        note = {}
-        note['pitch'] = event.pitch - 36
-        note['volume'] = math.floor((event.velocity / 127) * 7)
-        picoNotes.append(note)
+        for event in track.events:
+            if event.type == 'NOTE_ON' and event.velocity > 0:
+                # Repeat the previous PICO-8 note as necessary to match the
+                # length of the MIDI note
+                timeDelta = event.time - previousTime
+                previousNoteLen = timeDelta / midiConfig['ticksPerQuarterNote']
+                picoNoteCount = int(previousNoteLen * 8)
+                for i in range(picoNoteCount - 1):
+                    picoNotes.append(previousPicoNote)
 
-        previousPicoNote = note
-        previousTime = event.time
+                note = {}
+                note['pitch'] = event.pitch - 36
+                note['volume'] = math.floor((event.velocity / 127) * 7)
+                picoNotes.append(note)
+
+                previousPicoNote = note
+                previousTime = event.time
+
+        if len(picoNotes) > 0:
+            picoTracks.append(picoNotes)
+
+    return picoTracks
 
 
-print(picoNotes)
+# Make an empty PICO-8 catridge
+cart = game.Game.make_empty_game()
 
+tracks = get_tracks()
 
-cart = game.Game.from_filename(CART_PATH)
+# DEBUG
+#print(tracks)
+#sys.exit(0)
 
-i = 0
-for patternIndex in range(64):
-    for noteIndex in range(32):
-        note = picoNotes[i]
-        i += 1
+sfxIndex = -1
+for t, track in enumerate(tracks):
+    if t > PICO8_MAX_CHANNELS - 1:
+        print('Reached PICO-8 channel limit')
+        break
 
-        cart.sfx.set_properties(patternIndex, note_duration=14)
-        cart.sfx.set_note(patternIndex, noteIndex,
-                         pitch = note['pitch'],
-                         volume = note['volume'],
-                         waveform = 0)
+    noteIndex = -1
+    musicIndex = -1
+    trackSfxCount = 0
 
-sfxIndex = 0
-for musicIndex in range(64):
-    cart.music.set_channel(musicIndex, 0, sfxIndex)
-    sfxIndex += 1
+    print('new track')
+    print(len(track))
+
+    # Write the notes to a series of PICO-8 SFXes
+    for n, note in enumerate(track):
+        if noteIndex < PICO8_MAX_NOTES_PER_SFX:
+            noteIndex += 1
+        else:
+            noteIndex = 0
+
+        if noteIndex == 0:
+            trackSfxCount += 1
+            if trackSfxCount > pico8Config['maxSfxPerTrack']:
+                print('Ended track {0} early'.format(t))
+                break
+
+            # Move to the next PICO-8 SFX
+            sfxIndex += 1
+            print('moving to sfx ' + str(sfxIndex))
+
+            # Set the SFX note duration
+            cart.sfx.set_properties(
+                    sfxIndex,
+                    editor_mode=1,
+                    loop_start=0,
+                    loop_end=0,
+                    note_duration=pico8Config['noteDuration'])
+
+            # Add the SFX to a music pattern
+            musicIndex =+ 1
+            cart.music.set_channel(musicIndex, t, sfxIndex)
+
+        if note != None:
+            # Add this note to the current PICO-8 SFX
+            cart.sfx.set_note(
+                    sfxIndex,
+                    noteIndex,
+                    pitch = note['pitch'],
+                    volume = note['volume'],
+                    waveform = 1)
+                    #waveform = pico8Config['waveforms'][t])
+
 
 with open(CART_PATH, 'w', encoding='utf-8') as fh:
     cart.to_p8_file(fh)
