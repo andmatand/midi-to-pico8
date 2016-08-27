@@ -1,3 +1,6 @@
 # Python cache stuff
 __pycache__/
 *.py[cod]
+
+# PICO-8 carts
+*.p8

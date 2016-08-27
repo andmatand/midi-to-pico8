@@ -70,6 +70,11 @@ def get_tracks():
 
 # Make an empty PICO-8 catridge
 cart = game.Game.make_empty_game()
+lines = [
+    'music(0)\n',
+    'function _update()\n',
+    'end']
+cart.lua.update_from_lines(lines)
 
 tracks = get_tracks()
 
@@ -116,7 +121,7 @@ for t, track in enumerate(tracks):
                     note_duration=pico8Config['noteDuration'])
 
             # Add the SFX to a music pattern
-            musicIndex =+ 1
+            musicIndex += 1
             cart.music.set_channel(musicIndex, t, sfxIndex)
 
         if note != None:
