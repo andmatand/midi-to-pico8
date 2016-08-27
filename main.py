@@ -10,12 +10,17 @@ PICO8_MAX_CHANNELS = 4
 PICO8_MAX_NOTES_PER_SFX = 32
 PICO8_MAX_SFX = 64
 
+if len(sys.argv[0]) < 2:
+    print('give a filename argument')
+    sys.exit(1)
+
+path = sys.argv[1]
+
 # Song-Specific Config
-path = 'bwv578.mid'
 CART_PATH = 'bwv578.p8'
 midiConfig = {
-    'numTracks': 4,
-    'ticksPerQuarterNote': 240
+    'numTracks': 2,
+    'ppq': 240
 }
 pico8Config = {
     'noteDuration': 14,
@@ -29,53 +34,81 @@ pico8Config = {
 # g in MIDI: 67
 # MIDI pitch - 36 = pico8 pitch
 
+def quantize(x, ppq):
+    return int(ppq * round(x / ppq))
+
+def convert_deltatime_to_notelength(deltaTime):
+    # Quantize to nearest ppq
+    qdt = quantize(deltaTime, midiConfig['ppq'])
+
+    if qdt != deltaTime:
+        print('quantized deltaTime {0} to {1}'.format(deltaTime, qdt))
+
+    length = qdt / midiConfig['ppq']
+
+    #if length != math.floor(length):
+    #    print('inaccurate TIME_SIGNATURE detected')
+    #    sys.exit(1)
+
+    return int(length)
+
 def get_tracks():
     m = midi.MidiFile()
     m.open(path)
     m.read()
 
+    print('tacks')
+    print(len(m.tracks))
+
+    # DEBUG
+    #i = 0
+    #for event in m.tracks[2].events:
+    #    if event.type == 'NOTE_ON':
+    #        i += 1
+    #        print(i, event)
+    #    else:
+    #        print('', event)
+
     for event in m.tracks[0].events:
         if event.type == 'TIME_SIGNATURE':
-            #print(event.data)
-            ppq = event.data[2] * 10
-            print('setting ticksPerQuarterNote to {0}'.format(ppq))
-            midiConfig['ticksPerQuarterNote'] = ppq
+            ppq = event.data[2]
+            print('setting ticks per quarter note (ppq) to {0}'.format(ppq))
+            midiConfig['ppq'] = ppq
             break
 
-    #print(m.tracks[0].events[1].data[2])
+    # DEBUG
+    ppq = 60
+    print('setting ticks per quarter note (ppq) to {0}'.format(ppq))
+    midiConfig['ppq'] = ppq
 
     picoTracks = []
 
     for t, track in enumerate(m.tracks):
         picoNotes = []
-        previousTime = 0
-        previousPicoNote = None
 
-        for event in track.events:
-            if event.type == 'NOTE_ON' and event.velocity > 0:
-                # Repeat the previous PICO-8 note as necessary to match the
-                # length of the MIDI note
-                timeDelta = event.time - previousTime
-                previousNoteLen = timeDelta / midiConfig['ticksPerQuarterNote']
-                picoNoteCount = int(previousNoteLen * 8)
-
-                # If there was no previous note already added, and we are going
-                # to add "repetitions" of the note
-                if len(picoNotes) == 0 and picoNoteCount > 0:
-                    # Add the "first" instance of the note
-                    picoNotes.append(previousPicoNote)
-
-                # Repeat the note as necessary
-                for i in range(picoNoteCount - 1):
-                    picoNotes.append(previousPicoNote)
-
+        for e, event in enumerate(track.events):
+            if event.type == 'NOTE_ON' or event.type == 'NOTE_OFF':
                 note = {}
                 note['pitch'] = event.pitch - 36
                 note['volume'] = math.floor((event.velocity / 127) * 7)
-                picoNotes.append(note)
 
-                previousPicoNote = note
-                previousTime = event.time
+                if event.type == 'NOTE_OFF':
+                    note['volume'] = 0
+
+                # If this is the first note in this track
+                if len(picoNotes) == 0:
+                    # Add information on how many PICO-8 notes to wait before
+                    # starting this channel
+                    prevDelta = track.events[e - 1].time
+                    length = convert_deltatime_to_notelength(prevDelta)
+                    note['startDelay'] = length
+
+                # Repeat the PICO-8 note as necessary to match the
+                # length of the MIDI note
+                deltaTime = track.events[e + 1].time
+                picoNoteCount = convert_deltatime_to_notelength(deltaTime)
+                for i in range(picoNoteCount):
+                    picoNotes.append(note)
 
         if len(picoNotes) > 0:
             picoTracks.append(picoNotes)
@@ -103,16 +136,33 @@ for t, track in enumerate(tracks):
     musicIndex = -1
     trackSfxCount = 0
 
+    if 'startDelay' in track[0]:
+        trackOffset = track[0]['startDelay']
+
+        # offset by whole music patterns
+        musicOffset = math.floor(trackOffset / PICO8_MAX_NOTES_PER_SFX)
+        musicIndex = musicOffset - 1
+
+        # offset the remaining individual notes
+        noteOffset = trackOffset % PICO8_MAX_NOTES_PER_SFX
+        noteIndex = noteOffset - 1
+
+        print(trackOffset)
+        print(musicOffset)
+        print(noteOffset)
+
     print('track {0}'.format(t))
 
     # Write the notes to a series of PICO-8 SFXes
+    firstIteration = True
     for note in track:
         if noteIndex < PICO8_MAX_NOTES_PER_SFX - 1:
             noteIndex += 1
         else:
             noteIndex = 0
 
-        if noteIndex == 0:
+        if noteIndex == 0 or firstIteration:
+            firstIteration = False
             trackSfxCount += 1
             if trackSfxCount > pico8Config['maxSfxPerTrack']:
                 print('Ended track {0} early'.format(t))
@@ -137,7 +187,7 @@ for t, track in enumerate(tracks):
             musicIndex += 1
             cart.music.set_channel(musicIndex, t, sfxIndex)
 
-        if note != None and note['pitch'] > 0:
+        if note != None and note['pitch'] >= 0:
             # Add this note to the current PICO-8 SFX
             cart.sfx.set_note(
                     sfxIndex,
