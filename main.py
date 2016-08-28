@@ -6,9 +6,10 @@ from midi import midi as midiParser
 from pico8.game import game
 
 # Constants
-PICO8_MAX_CHANNELS = 4
-PICO8_MAX_NOTES_PER_SFX = 32
-PICO8_MAX_SFX = 64
+PICO8_NUM_CHANNELS = 4
+PICO8_NOTES_PER_SFX = 32
+PICO8_NUM_SFX = 64
+PICO8_NUM_MUSIC = 64
 PICO8_MAX_PITCH = 63
 
 # Song-Specific Config
@@ -167,7 +168,7 @@ midiConfig['numTracks'] = len(tracks)
 
 pico8Config = {
     'noteDuration': 14,
-    'maxSfxPerTrack': math.floor(PICO8_MAX_SFX / midiConfig['numTracks']),
+    'maxSfxPerTrack': math.floor(PICO8_NUM_SFX / midiConfig['numTracks']),
     'waveforms': [1, 2, 3, 4],
 }
 
@@ -183,7 +184,7 @@ cart.lua.update_from_lines(lines)
 
 sfxIndex = -1
 for t, track in enumerate(tracks):
-    if t > PICO8_MAX_CHANNELS - 1:
+    if t > PICO8_NUM_CHANNELS - 1:
         print('Reached PICO-8 channel limit')
         break
 
@@ -195,11 +196,11 @@ for t, track in enumerate(tracks):
         trackOffset = track[0]['startDelay']
 
         # offset by whole music patterns
-        musicOffset = math.floor(trackOffset / PICO8_MAX_NOTES_PER_SFX)
+        musicOffset = math.floor(trackOffset / PICO8_NOTES_PER_SFX)
         musicIndex = musicOffset - 1
 
         # offset the remaining individual notes
-        noteOffset = trackOffset % PICO8_MAX_NOTES_PER_SFX
+        noteOffset = trackOffset % PICO8_NOTES_PER_SFX
         noteIndex = noteOffset - 1
 
         print(trackOffset)
@@ -211,7 +212,7 @@ for t, track in enumerate(tracks):
     # Write the notes to a series of PICO-8 SFXes
     firstIteration = True
     for note in track:
-        if noteIndex < PICO8_MAX_NOTES_PER_SFX - 1:
+        if noteIndex < PICO8_NOTES_PER_SFX - 1:
             noteIndex += 1
         else:
             noteIndex = 0
@@ -226,7 +227,7 @@ for t, track in enumerate(tracks):
             # Move to the next PICO-8 SFX
             sfxIndex += 1
 
-            if sfxIndex > PICO8_MAX_SFX - 1:
+            if sfxIndex > PICO8_NUM_SFX - 1:
                 print('reached max SFX')
                 break
 
@@ -240,6 +241,9 @@ for t, track in enumerate(tracks):
 
             # Add the SFX to a music pattern
             musicIndex += 1
+            if musicIndex > PICO8_NUM_MUSIC - 1:
+                print('reached max music patterns')
+                break
             cart.music.set_channel(musicIndex, t, sfxIndex)
 
 
