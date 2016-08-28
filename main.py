@@ -9,6 +9,7 @@ from pico8.game import game
 PICO8_MAX_CHANNELS = 4
 PICO8_MAX_NOTES_PER_SFX = 32
 PICO8_MAX_SFX = 64
+PICO8_MAX_PITCH = 63
 
 # Song-Specific Config
 CART_PATH = 'midi_out.p8'
@@ -52,7 +53,7 @@ def read_ppq(midi):
 def get_tracks(midi):
     # DEBUG
     #i = 0
-    #for event in midi.tracks[1].events:
+    #for event in midi.tracks[4].events:
     #    if event.type == 'NOTE_ON':
     #        i += 1
     #        print(i, event)
@@ -113,6 +114,44 @@ def parse_command_line_args():
     if len(sys.argv) >= 3:
         midiConfig['ppq'] = int(sys.argv[2])
 
+def adjust_octaves(tracks):
+    for t, track in enumerate(tracks):
+        # Count how many actual notes are in this track, where "actual notes"
+        # are those who have the following characteristics:
+        # * volume greater than 0
+        # * will actually fit in PICO-8 tracker space limits
+        actualNoteCount = 0
+        for note in track:
+            if note['volume'] > 0:
+                actualNoteCount += 1
+        actualNoteCount = min(actualNoteCount, pico8Config['maxSfxPerTrack'])
+        
+        # Count how many notes' pitches in this track are below PICO-8 range
+        tooLowCount = 0
+        for note in track:
+            if note['volume'] > 0 and note['pitch'] < 0:
+                tooLowCount += 1
+
+        # Count how many notes' pitches in this track are above PICO-8 range
+        tooHighCount = 0
+        for note in track:
+            if note['volume'] > 0 and note['pitch'] > PICO8_MAX_PITCH:
+                tooHighCount += 1
+
+        # If the majority are too low
+        if tooLowCount >= (actualNoteCount / 2):
+            print('pitching out-of-range track {0} up an octave'.format(t))
+            # Add an octave to every note in this track
+            for note in track:
+                note['pitch'] += 12
+        # If the majority are too high
+        elif tooHighCount >= (actualNoteCount / 2):
+            print('pitching out-of-range track {0} down an octave'.format(t))
+            # Subtract an octave from every note in this track
+            for note in track:
+                note['pitch'] -= 12
+
+
 
 parse_command_line_args()
 
@@ -128,9 +167,11 @@ midiConfig['numTracks'] = len(tracks)
 
 pico8Config = {
     'noteDuration': 14,
-    'maxSfxPerTrack': PICO8_MAX_SFX / midiConfig['numTracks'],
+    'maxSfxPerTrack': math.floor(PICO8_MAX_SFX / midiConfig['numTracks']),
     'waveforms': [1, 2, 3, 4],
 }
+
+adjust_octaves(tracks)
 
 # Make an empty PICO-8 catridge
 cart = game.Game.make_empty_game()
@@ -201,7 +242,10 @@ for t, track in enumerate(tracks):
             musicIndex += 1
             cart.music.set_channel(musicIndex, t, sfxIndex)
 
-        if note != None and note['pitch'] >= 0 and note['pitch'] <= 63:
+
+        noteIsInRange = (note['pitch'] >= 0 and
+                         note['pitch'] <= PICO8_MAX_PITCH)
+        if note != None and noteIsInRange:
             # Add this note to the current PICO-8 SFX
             cart.sfx.set_note(
                     sfxIndex,
