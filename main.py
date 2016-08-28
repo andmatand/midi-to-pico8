@@ -90,8 +90,8 @@ def get_tracks(midi):
 def parse_command_line_args():
     global path
 
-    if len(sys.argv[0]) < 2:
-        print('give a filename argument')
+    if len(sys.argv) < 2:
+        print('usage: main.py <MIDI FILENAME> [Ticks Per Quarter Note]')
         sys.exit(1)
 
     # Get the filename from the 1st command line argument
