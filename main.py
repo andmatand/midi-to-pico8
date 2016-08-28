@@ -11,7 +11,7 @@ PICO8_MAX_NOTES_PER_SFX = 32
 PICO8_MAX_SFX = 64
 
 # Song-Specific Config
-CART_PATH = 'bwv578.p8'
+CART_PATH = 'midi_out.p8'
 midiConfig = {'ppq': None}
 
 
