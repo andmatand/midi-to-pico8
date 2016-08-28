@@ -2,7 +2,7 @@
 
 import math
 import sys
-from midi import midi
+from midi import midi as midiParser
 from pico8.game import game
 
 # Constants
@@ -10,29 +10,10 @@ PICO8_MAX_CHANNELS = 4
 PICO8_MAX_NOTES_PER_SFX = 32
 PICO8_MAX_SFX = 64
 
-if len(sys.argv[0]) < 2:
-    print('give a filename argument')
-    sys.exit(1)
-
-path = sys.argv[1]
-
 # Song-Specific Config
 CART_PATH = 'bwv578.p8'
-midiConfig = {
-    'numTracks': 2,
-    'ppq': 240
-}
-pico8Config = {
-    'noteDuration': 14,
-    'maxSfxPerTrack': PICO8_MAX_SFX / midiConfig['numTracks'],
-    'waveforms': [1, 2, 3, 4],
-}
+midiConfig = {'ppq': None}
 
-
-# lowest midi pitch: 43
-# g in pico8: 31
-# g in MIDI: 67
-# MIDI pitch - 36 = pico8 pitch
 
 def quantize(x, ppq):
     return int(ppq * round(x / ppq))
@@ -52,38 +33,29 @@ def convert_deltatime_to_notelength(deltaTime):
 
     return int(length)
 
-def get_tracks():
-    m = midi.MidiFile()
-    m.open(path)
-    m.read()
+def read_ppq(midi):
+    for event in midi.tracks[0].events:
+        if event.type == 'TIME_SIGNATURE':
+            return event.data[2]
 
-    print('tacks')
-    print(len(m.tracks))
-
+def get_tracks(midi):
     # DEBUG
     #i = 0
-    #for event in m.tracks[2].events:
+    #for event in midi.tracks[2].events:
     #    if event.type == 'NOTE_ON':
     #        i += 1
     #        print(i, event)
     #    else:
     #        print('', event)
 
-    for event in m.tracks[0].events:
-        if event.type == 'TIME_SIGNATURE':
-            ppq = event.data[2]
-            print('setting ticks per quarter note (ppq) to {0}'.format(ppq))
-            midiConfig['ppq'] = ppq
-            break
-
-    # DEBUG
-    ppq = 60
-    print('setting ticks per quarter note (ppq) to {0}'.format(ppq))
-    midiConfig['ppq'] = ppq
+    if midiConfig['ppq'] == None:
+        ppq = read_ppq(midi)
+        print('setting ticks per quarter note (ppq) to {0}'.format(ppq))
+        midiConfig['ppq'] = ppq
 
     picoTracks = []
 
-    for t, track in enumerate(m.tracks):
+    for t, track in enumerate(midi.tracks):
         picoNotes = []
 
         for e, event in enumerate(track.events):
@@ -115,6 +87,39 @@ def get_tracks():
 
     return picoTracks
 
+def parse_command_line_args():
+    global path
+
+    if len(sys.argv[0]) < 2:
+        print('give a filename argument')
+        sys.exit(1)
+
+    # Get the filename from the 1st command line argument
+    path = sys.argv[1]
+
+    # Get the (optional) PPQ (pulses/ticks per quarternote) from the 2nd command
+    # line argument
+    if len(sys.argv) >= 3:
+        midiConfig['ppq'] = int(sys.argv[2])
+
+
+parse_command_line_args()
+
+# Open the MIDI file
+midi = midiParser.MidiFile()
+midi.open(path)
+midi.read()
+
+# Get all the notes converted to PICO-8-like notes
+tracks = get_tracks(midi)
+
+midiConfig['numTracks'] = len(tracks)
+
+pico8Config = {
+    'noteDuration': 14,
+    'maxSfxPerTrack': PICO8_MAX_SFX / midiConfig['numTracks'],
+    'waveforms': [1, 2, 3, 4],
+}
 
 # Make an empty PICO-8 catridge
 cart = game.Game.make_empty_game()
@@ -123,8 +128,6 @@ lines = [
     'function _update()\n',
     'end']
 cart.lua.update_from_lines(lines)
-
-tracks = get_tracks()
 
 sfxIndex = -1
 for t, track in enumerate(tracks):
@@ -187,14 +190,14 @@ for t, track in enumerate(tracks):
             musicIndex += 1
             cart.music.set_channel(musicIndex, t, sfxIndex)
 
-        if note != None and note['pitch'] >= 0:
+        if note != None and note['pitch'] >= 0 and note['pitch'] <= 63:
             # Add this note to the current PICO-8 SFX
             cart.sfx.set_note(
                     sfxIndex,
                     noteIndex,
                     pitch = note['pitch'],
                     volume = note['volume'],
-                    waveform = 1)
+                    waveform = 2)
                     #waveform = pico8Config['waveforms'][t])
 
 
