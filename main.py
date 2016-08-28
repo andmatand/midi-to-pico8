@@ -13,17 +13,28 @@ PICO8_MAX_SFX = 64
 # Song-Specific Config
 CART_PATH = 'midi_out.p8'
 midiConfig = {'ppq': None}
+quantizationIsEnabled = False
 
 
 def quantize(x, ppq):
-    return int(ppq * round(x / ppq))
+    resolution = ppq
+
+    # If 8th note resolution would be an integer
+    if ppq % 2 == 0:
+        # Use 8th note resolution
+        resolution = ppq / 2
+
+    return int(resolution * round(x / resolution))
 
 def convert_deltatime_to_notelength(deltaTime):
-    # Quantize to nearest ppq
-    qdt = quantize(deltaTime, midiConfig['ppq'])
+    if quantizationIsEnabled:
+        # Quantize to nearest quarter or 8th note according to ppq
+        qdt = quantize(deltaTime, midiConfig['ppq'])
 
-    if qdt != deltaTime:
-        print('quantized deltaTime {0} to {1}'.format(deltaTime, qdt))
+        if qdt != deltaTime:
+            print('quantized deltaTime {0} to {1}'.format(deltaTime, qdt))
+    else:
+        qdt = deltaTime
 
     length = qdt / midiConfig['ppq']
 
@@ -41,7 +52,7 @@ def read_ppq(midi):
 def get_tracks(midi):
     # DEBUG
     #i = 0
-    #for event in midi.tracks[2].events:
+    #for event in midi.tracks[1].events:
     #    if event.type == 'NOTE_ON':
     #        i += 1
     #        print(i, event)
