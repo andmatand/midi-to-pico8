@@ -54,7 +54,7 @@ def read_ppq(midi):
 def get_tracks(midi):
     # DEBUG
     #i = 0
-    #for event in midi.tracks[4].events:
+    #for event in midi.tracks[1].events:
     #    if event.type == 'NOTE_ON':
     #        i += 1
     #        print(i, event)
@@ -125,7 +125,6 @@ def adjust_octaves(tracks):
         for note in track:
             if note['volume'] > 0:
                 actualNoteCount += 1
-        actualNoteCount = min(actualNoteCount, pico8Config['maxSfxPerTrack'])
         
         # Count how many notes' pitches in this track are below PICO-8 range
         tooLowCount = 0
@@ -168,9 +167,13 @@ midiConfig['numTracks'] = len(tracks)
 
 pico8Config = {
     'noteDuration': 14,
-    'maxSfxPerTrack': math.floor(PICO8_NUM_SFX / midiConfig['numTracks']),
     'waveforms': [1, 2, 3, 4],
 }
+
+# Discard tracks we don't have room for
+if len(tracks) > PICO8_NUM_CHANNELS:
+    print("Warning: discarding some tracks we don't have room for")
+    tracks = tracks[:PICO8_NUM_CHANNELS]
 
 adjust_octaves(tracks)
 
@@ -182,82 +185,151 @@ lines = [
     'end']
 cart.lua.update_from_lines(lines)
 
-sfxIndex = -1
+# Prepend empty notes to the beginning of each track based on the track's
+# startDelay
 for t, track in enumerate(tracks):
-    if t > PICO8_NUM_CHANNELS - 1:
-        print('Reached PICO-8 channel limit')
-        break
-
-    noteIndex = -1
-    musicIndex = -1
-    trackSfxCount = 0
-
     if 'startDelay' in track[0]:
         trackOffset = track[0]['startDelay']
 
-        # offset by whole music patterns
-        musicOffset = math.floor(trackOffset / PICO8_NOTES_PER_SFX)
-        musicIndex = musicOffset - 1
+        for i in range(trackOffset):
+            track.insert(0, None)
 
-        # offset the remaining individual notes
-        noteOffset = trackOffset % PICO8_NOTES_PER_SFX
-        noteIndex = noteOffset - 1
+        ## offset by whole music patterns
+        #musicOffset = math.floor(trackOffset / PICO8_NOTES_PER_SFX)
+        #musicIndex = musicOffset - 1
 
-        print(trackOffset)
-        print(musicOffset)
-        print(noteOffset)
+        ## offset the remaining individual notes
+        #noteOffset = trackOffset % PICO8_NOTES_PER_SFX
+        #noteIndex = noteOffset - 1
 
-    print('track {0}'.format(t))
+# Set the note duration of all SFXes
+for sfxIndex in range(PICO8_NUM_SFX):
+    cart.sfx.set_properties(
+            sfxIndex,
+            editor_mode=1,
+            loop_start=0,
+            loop_end=0,
+            note_duration=pico8Config['noteDuration'])
 
-    # Write the notes to a series of PICO-8 SFXes
-    firstIteration = True
-    for note in track:
-        if noteIndex < PICO8_NOTES_PER_SFX - 1:
-            noteIndex += 1
-        else:
-            noteIndex = 0
+trackNoteIndexStart = 0
+sfxIndex = 0
+sfxNoteIndex = 0
+musicIndex = 0
+while sfxIndex < PICO8_NUM_SFX:
+    for t, track in enumerate(tracks):
+        wroteAnyNotesToSfx = False
 
-        if noteIndex == 0 or firstIteration:
-            firstIteration = False
-            trackSfxCount += 1
-            if trackSfxCount > pico8Config['maxSfxPerTrack']:
-                print('Ended track {0} early'.format(t))
+        # Add the next 32 notes in this track
+        trackNoteIndex = trackNoteIndexStart
+        for sfxNoteIndex in range(PICO8_NOTES_PER_SFX):
+            if trackNoteIndex > len(track) - 1:
                 break
+            note = track[trackNoteIndex]
+            if note != None:
+                wroteAnyNotesToSfx = True
+                noteIsInRange = (note['pitch'] >= 0 and
+                                 note['pitch'] <= PICO8_MAX_PITCH)
+                if noteIsInRange:
+                    # Add this note to the current PICO-8 SFX
+                    cart.sfx.set_note(
+                            sfxIndex,
+                            sfxNoteIndex,
+                            pitch = note['pitch'],
+                            volume = note['volume'],
+                            waveform = pico8Config['waveforms'][t])
+            trackNoteIndex += 1 
 
-            # Move to the next PICO-8 SFX
-            sfxIndex += 1
-
-            if sfxIndex > PICO8_NUM_SFX - 1:
-                print('reached max SFX')
-                break
-
-            # Set the SFX note duration
-            cart.sfx.set_properties(
-                    sfxIndex,
-                    editor_mode=1,
-                    loop_start=0,
-                    loop_end=0,
-                    note_duration=pico8Config['noteDuration'])
-
+        if wroteAnyNotesToSfx:
             # Add the SFX to a music pattern
-            musicIndex += 1
-            if musicIndex > PICO8_NUM_MUSIC - 1:
-                print('reached max music patterns')
-                break
             cart.music.set_channel(musicIndex, t, sfxIndex)
 
+            # Move to the next SFX
+            sfxIndex += 1
 
-        noteIsInRange = (note['pitch'] >= 0 and
-                         note['pitch'] <= PICO8_MAX_PITCH)
-        if note != None and noteIsInRange:
-            # Add this note to the current PICO-8 SFX
-            cart.sfx.set_note(
-                    sfxIndex,
-                    noteIndex,
-                    pitch = note['pitch'],
-                    volume = note['volume'],
-                    waveform = 2)
-                    #waveform = pico8Config['waveforms'][t])
+    # Increment trackNoteIndexStart
+    trackNoteIndexStart += PICO8_NOTES_PER_SFX
+
+    musicIndex += 1
+    if musicIndex > PICO8_NUM_MUSIC - 1:
+        print('reached max music patterns')
+        break
+
+    # Check if the trackNoteIndexStart is past the end of all tracks
+    allTracksAreEnded = True
+    for track in tracks:
+        if trackNoteIndexStart < len(track):
+            allTracksAreEnded = False
+            break
+    if allTracksAreEnded:
+        break
+
+
+#for t, track in enumerate(tracks):
+#    if 'startDelay' in track[0]:
+#        trackOffset = track[0]['startDelay']
+#
+#        # offset by whole music patterns
+#        musicOffset = math.floor(trackOffset / PICO8_NOTES_PER_SFX)
+#        musicIndex = musicOffset - 1
+#
+#        # offset the remaining individual notes
+#        noteOffset = trackOffset % PICO8_NOTES_PER_SFX
+#        noteIndex = noteOffset - 1
+#
+#        print(trackOffset)
+#        print(musicOffset)
+#        print(noteOffset)
+#
+#    print('track {0}'.format(t))
+#
+#    # Write the notes to a series of PICO-8 SFXes
+#    firstIteration = True
+#    for note in track:
+#        if noteIndex < PICO8_NOTES_PER_SFX - 1:
+#            noteIndex += 1
+#        else:
+#            noteIndex = 0
+#
+#        if noteIndex == 0 or firstIteration:
+#            firstIteration = False
+#            trackSfxCount += 1
+#            if trackSfxCount > pico8Config['maxSfxPerTrack']:
+#                print('Ended track {0} early'.format(t))
+#                break
+#
+#            # Move to the next PICO-8 SFX
+#            sfxIndex += 1
+#
+#            if sfxIndex > PICO8_NUM_SFX - 1:
+#                print('reached max SFX')
+#                break
+#
+#            # Set the SFX note duration
+#            cart.sfx.set_properties(
+#                    sfxIndex,
+#                    editor_mode=1,
+#                    loop_start=0,
+#                    loop_end=0,
+#                    note_duration=pico8Config['noteDuration'])
+#
+#            # Add the SFX to a music pattern
+#            musicIndex += 1
+#            if musicIndex > PICO8_NUM_MUSIC - 1:
+#                print('reached max music patterns')
+#                break
+#            cart.music.set_channel(musicIndex, t, sfxIndex)
+#
+#
+#        noteIsInRange = (note['pitch'] >= 0 and
+#                         note['pitch'] <= PICO8_MAX_PITCH)
+#        if note != None and noteIsInRange:
+#            # Add this note to the current PICO-8 SFX
+#            cart.sfx.set_note(
+#                    sfxIndex,
+#                    noteIndex,
+#                    pitch = note['pitch'],
+#                    volume = note['volume'],
+#                    waveform = pico8Config['waveforms'][t])
 
 
 with open(CART_PATH, 'w', encoding='utf-8') as fh:
