@@ -20,6 +20,7 @@ of MIDI file which has the following characterstics:
 * Each "voice" should be on a different track
   * This also means that MIDI file format Type 0 (the format that puts all
     voices on only 1 track) is not currently supported
+* Multiple notes should never be playing at the same time on the same track
 * The tempo should not change during the song
 * The song must have a maximum of 4 tracks
   * Any tracks past the first 4 will be excluded from the import
@@ -31,6 +32,7 @@ of MIDI file which has the following characterstics:
   within the 64 SFX banks of the PICO-8
   * The program will try to fit as much of the song in as it can, but it can't
     perform miracles
+* It should not use any drums (channel 10)
 
 TLDR:
 If you use a MIDI with the right characteristics, this program can and does
@@ -57,3 +59,4 @@ try to implement in the future:
 * Automatic or manual combination of multiple tracks into one (in places where
   both are not playing notes at the same time)
 * MIDI file type 0 support
+* Drums (channel 10) support
