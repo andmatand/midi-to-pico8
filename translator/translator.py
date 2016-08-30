@@ -25,7 +25,6 @@ class Translator:
 
 
     def analyze(self):
-        # TODO
         # Get a list of unique note lengths and the number of occurences of
         # each length
         uniqueLengths = {}
@@ -47,24 +46,23 @@ class Translator:
                 highestCount = count
                 mostFrequentLength = length
 
-        #print('unique note lengths:')
-        #print(uniqueLengths)
         print('most frequent length: ' + str(mostFrequentLength))
 
-        shortestLength = 32767
-        for length, count in uniqueLengths.items():
-            if length < shortestLength:
-                shortestLength = length
-        print('shortest length: ' + str(shortestLength))
+        # DEBUG
+        #shortestLength = 32767
+        #for length, count in uniqueLengths.items():
+        #    if length < shortestLength:
+        #        shortestLength = length
+        #print('shortest length: ' + str(shortestLength))
 
-        print('events with shortest length:')
-        for track in self.midiFile.tracks:
-            for e, event in enumerate(track.events):
-                if event.type == 'NOTE_ON' or event.type == 'NOTE_OFF':
-                    length = track.events[e + 1].time
-                    if length == shortestLength:
-                        print(event)
-
+        # DEBUG
+        #print('events with shortest length:')
+        #for track in self.midiFile.tracks:
+        #    for e, event in enumerate(track.events):
+        #        if event.type == 'NOTE_ON' or event.type == 'NOTE_OFF':
+        #            length = track.events[e + 1].time
+        #            if length == shortestLength:
+        #                print(event)
 
         # Find the shortest occuring length that divides evenly into
         # mostFrequentLength
