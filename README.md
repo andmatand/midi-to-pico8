@@ -50,7 +50,7 @@ These are things that are totally unimplemented now but that I probably will
 try to implement in the future:
 * The ability to manually specify which waveform to use for which track, via a
   command line argument
-* The ability to manually override note duration via a command line arugment
+* The ability to manually override note duration via a command line argument
 * Effects (especially putting a fadeout at the end of notes so they don't run
   together)
 * An automatic best guess MIDI-instrument-to-PICO-8-waveform mapping table
