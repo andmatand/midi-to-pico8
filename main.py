@@ -2,7 +2,8 @@
 
 import math
 import sys
-from midi import midi as midiParser
+from translator import translator
+from midi import midi
 from pico8.game import game
 
 # Constants
@@ -12,93 +13,15 @@ PICO8_NUM_SFX = 64
 PICO8_NUM_MUSIC = 64
 PICO8_MAX_PITCH = 63
 
-# Song-Specific Config
+# TODO: make this settable via CLI argument
 CART_PATH = 'midi_out.p8'
-midiConfig = {'ppq': None}
-quantizationIsEnabled = False
 
+# Song-Specific Config
+pico8Config = {
+    'noteDuration': 14,
+    'waveforms': [1, 2, 3, 1],
+}
 
-def quantize(x, ppq):
-    resolution = ppq
-
-    # If 8th note resolution would be an integer
-    if ppq % 2 == 0:
-        # Use 8th note resolution
-        resolution = ppq / 2
-
-    return int(resolution * round(x / resolution))
-
-def convert_deltatime_to_notelength(deltaTime):
-    if quantizationIsEnabled:
-        # Quantize to nearest quarter or 8th note according to ppq
-        qdt = quantize(deltaTime, midiConfig['ppq'])
-
-        if qdt != deltaTime:
-            print('quantized deltaTime {0} to {1}'.format(deltaTime, qdt))
-    else:
-        qdt = deltaTime
-
-    length = qdt / midiConfig['ppq']
-
-    #if length != math.floor(length):
-    #    print('inaccurate TIME_SIGNATURE detected')
-    #    sys.exit(1)
-
-    return int(length)
-
-def read_ppq(midi):
-    for event in midi.tracks[0].events:
-        if event.type == 'TIME_SIGNATURE':
-            return event.data[2]
-
-def get_tracks(midi):
-    # DEBUG
-    #i = 0
-    #for event in midi.tracks[1].events:
-    #    if event.type == 'NOTE_ON':
-    #        i += 1
-    #        print(i, event)
-    #    else:
-    #        print('', event)
-
-    if midiConfig['ppq'] == None:
-        ppq = read_ppq(midi)
-        print('setting ticks per quarter note (ppq) to {0}'.format(ppq))
-        midiConfig['ppq'] = ppq
-
-    picoTracks = []
-
-    for t, track in enumerate(midi.tracks):
-        picoNotes = []
-
-        for e, event in enumerate(track.events):
-            if event.type == 'NOTE_ON' or event.type == 'NOTE_OFF':
-                note = {}
-                note['pitch'] = event.pitch - 36
-                note['volume'] = math.floor((event.velocity / 127) * 7)
-
-                if event.type == 'NOTE_OFF':
-                    note['volume'] = 0
-
-                # If this is the first note in this track
-                if len(picoNotes) == 0:
-                    # Add information on how many PICO-8 notes to wait before
-                    # starting this channel
-                    prevDelta = track.events[e - 1].time
-                    length = convert_deltatime_to_notelength(prevDelta)
-                    note['startDelay'] = length
-
-                # Repeat the PICO-8 note as necessary to match the
-                # length of the MIDI note
-                deltaTime = track.events[e + 1].time
-                picoNoteCount = convert_deltatime_to_notelength(deltaTime)
-                for i in range(picoNoteCount):
-                    picoNotes.append(note)
-
-        if len(picoNotes) > 0:
-            picoTracks.append(picoNotes)
-
-    return picoTracks
 
 def parse_command_line_args():
     global path
@@ -110,72 +33,28 @@ def parse_command_line_args():
     # Get the filename from the 1st command line argument
     path = sys.argv[1]
 
-    # Get the (optional) PPQ (pulses/ticks per quarternote) from the 2nd command
-    # line argument
-    if len(sys.argv) >= 3:
-        midiConfig['ppq'] = int(sys.argv[2])
-
-def adjust_octaves(tracks):
-    for t, track in enumerate(tracks):
-        # Count how many actual notes are in this track, where "actual notes"
-        # are those who have the following characteristics:
-        # * volume greater than 0
-        # * will actually fit in PICO-8 tracker space limits
-        actualNoteCount = 0
-        for note in track:
-            if note['volume'] > 0:
-                actualNoteCount += 1
-        
-        # Count how many notes' pitches in this track are below PICO-8 range
-        tooLowCount = 0
-        for note in track:
-            if note['volume'] > 0 and note['pitch'] < 0:
-                tooLowCount += 1
-
-        # Count how many notes' pitches in this track are above PICO-8 range
-        tooHighCount = 0
-        for note in track:
-            if note['volume'] > 0 and note['pitch'] > PICO8_MAX_PITCH:
-                tooHighCount += 1
-
-        # If the majority are too low
-        if tooLowCount >= (actualNoteCount / 2):
-            print('pitching out-of-range track {0} up an octave'.format(t))
-            # Add an octave to every note in this track
-            for note in track:
-                note['pitch'] += 12
-        # If the majority are too high
-        elif tooHighCount >= (actualNoteCount / 2):
-            print('pitching out-of-range track {0} down an octave'.format(t))
-            # Subtract an octave from every note in this track
-            for note in track:
-                note['pitch'] -= 12
-
-
 
 parse_command_line_args()
 
 # Open the MIDI file
-midi = midiParser.MidiFile()
-midi.open(path)
-midi.read()
+midiFile = midi.MidiFile()
+midiFile.open(path)
+midiFile.read()
+
+translator = translator.Translator(midiFile)
+
+translator.analyze()
 
 # Get all the notes converted to PICO-8-like notes
-tracks = get_tracks(midi)
+tracks = translator.get_tracks()
 
-midiConfig['numTracks'] = len(tracks)
+# DEBUG
+#for t, track in enumerate(tracks):
+#    print('track ' + str(t))
+#    for n, note in enumerate(track):
+#        print(n, note.pitch, note.volume)
 
-pico8Config = {
-    'noteDuration': 14,
-    'waveforms': [1, 2, 3, 4],
-}
-
-# Discard tracks we don't have room for
-if len(tracks) > PICO8_NUM_CHANNELS:
-    print("Warning: discarding some tracks we don't have room for")
-    tracks = tracks[:PICO8_NUM_CHANNELS]
-
-adjust_octaves(tracks)
+translator.adjust_octaves(tracks)
 
 # Make an empty PICO-8 catridge
 cart = game.Game.make_empty_game()
@@ -188,19 +67,34 @@ cart.lua.update_from_lines(lines)
 # Prepend empty notes to the beginning of each track based on the track's
 # startDelay
 for t, track in enumerate(tracks):
-    if 'startDelay' in track[0]:
-        trackOffset = track[0]['startDelay']
+    if track[0].startDelay != None:
+        trackOffset = track[0].startDelay
 
         for i in range(trackOffset):
             track.insert(0, None)
 
         ## offset by whole music patterns
-        #musicOffset = math.floor(trackOffset / PICO8_NOTES_PER_SFX)
-        #musicIndex = musicOffset - 1
+        musicOffset = math.floor(trackOffset / PICO8_NOTES_PER_SFX)
+        musicIndex = musicOffset - 1
 
         ## offset the remaining individual notes
-        #noteOffset = trackOffset % PICO8_NOTES_PER_SFX
-        #noteIndex = noteOffset - 1
+        noteOffset = trackOffset % PICO8_NOTES_PER_SFX
+        noteIndex = noteOffset - 1
+
+# DEBUG: add notes from track 4 into track 3 if track 3's slot is empty
+#for n, note in enumerate(tracks[3]):
+#    if note == None or note['volume'] == 0:
+#        if n < len(tracks[4]) and tracks[4][n] != None:
+#            print(n, tracks[4][n])
+#            tracks[3][n] = {
+#                'pitch': tracks[4][n]['pitch'],
+#                'volume': tracks[4][n]['volume']
+#            }
+
+# Discard tracks we don't have room for
+if len(tracks) > PICO8_NUM_CHANNELS:
+    print("Warning: discarding some tracks we don't have room for")
+    tracks = tracks[:PICO8_NUM_CHANNELS]
 
 # Set the note duration of all SFXes
 for sfxIndex in range(PICO8_NUM_SFX):
@@ -209,7 +103,7 @@ for sfxIndex in range(PICO8_NUM_SFX):
             editor_mode=1,
             loop_start=0,
             loop_end=0,
-            note_duration=pico8Config['noteDuration'])
+            note_duration=translator.noteDuration)
 
 trackNoteIndexStart = 0
 sfxIndex = 0
@@ -227,15 +121,15 @@ while sfxIndex < PICO8_NUM_SFX:
             note = track[trackNoteIndex]
             if note != None:
                 wroteAnyNotesToSfx = True
-                noteIsInRange = (note['pitch'] >= 0 and
-                                 note['pitch'] <= PICO8_MAX_PITCH)
+                noteIsInRange = (note.pitch >= 0 and
+                                 note.pitch <= PICO8_MAX_PITCH)
                 if noteIsInRange:
                     # Add this note to the current PICO-8 SFX
                     cart.sfx.set_note(
                             sfxIndex,
                             sfxNoteIndex,
-                            pitch = note['pitch'],
-                            volume = note['volume'],
+                            pitch = note.pitch,
+                            volume = note.volume,
                             waveform = pico8Config['waveforms'][t])
             trackNoteIndex += 1 
 
@@ -245,6 +139,9 @@ while sfxIndex < PICO8_NUM_SFX:
 
             # Move to the next SFX
             sfxIndex += 1
+
+            if sfxIndex > PICO8_NUM_SFX - 1:
+                break
 
     # Increment trackNoteIndexStart
     trackNoteIndexStart += PICO8_NOTES_PER_SFX
@@ -263,77 +160,6 @@ while sfxIndex < PICO8_NUM_SFX:
     if allTracksAreEnded:
         break
 
-
-#for t, track in enumerate(tracks):
-#    if 'startDelay' in track[0]:
-#        trackOffset = track[0]['startDelay']
-#
-#        # offset by whole music patterns
-#        musicOffset = math.floor(trackOffset / PICO8_NOTES_PER_SFX)
-#        musicIndex = musicOffset - 1
-#
-#        # offset the remaining individual notes
-#        noteOffset = trackOffset % PICO8_NOTES_PER_SFX
-#        noteIndex = noteOffset - 1
-#
-#        print(trackOffset)
-#        print(musicOffset)
-#        print(noteOffset)
-#
-#    print('track {0}'.format(t))
-#
-#    # Write the notes to a series of PICO-8 SFXes
-#    firstIteration = True
-#    for note in track:
-#        if noteIndex < PICO8_NOTES_PER_SFX - 1:
-#            noteIndex += 1
-#        else:
-#            noteIndex = 0
-#
-#        if noteIndex == 0 or firstIteration:
-#            firstIteration = False
-#            trackSfxCount += 1
-#            if trackSfxCount > pico8Config['maxSfxPerTrack']:
-#                print('Ended track {0} early'.format(t))
-#                break
-#
-#            # Move to the next PICO-8 SFX
-#            sfxIndex += 1
-#
-#            if sfxIndex > PICO8_NUM_SFX - 1:
-#                print('reached max SFX')
-#                break
-#
-#            # Set the SFX note duration
-#            cart.sfx.set_properties(
-#                    sfxIndex,
-#                    editor_mode=1,
-#                    loop_start=0,
-#                    loop_end=0,
-#                    note_duration=pico8Config['noteDuration'])
-#
-#            # Add the SFX to a music pattern
-#            musicIndex += 1
-#            if musicIndex > PICO8_NUM_MUSIC - 1:
-#                print('reached max music patterns')
-#                break
-#            cart.music.set_channel(musicIndex, t, sfxIndex)
-#
-#
-#        noteIsInRange = (note['pitch'] >= 0 and
-#                         note['pitch'] <= PICO8_MAX_PITCH)
-#        if note != None and noteIsInRange:
-#            # Add this note to the current PICO-8 SFX
-#            cart.sfx.set_note(
-#                    sfxIndex,
-#                    noteIndex,
-#                    pitch = note['pitch'],
-#                    volume = note['volume'],
-#                    waveform = pico8Config['waveforms'][t])
-
-
+# Write the cart
 with open(CART_PATH, 'w', encoding='utf-8') as fh:
     cart.to_p8_file(fh)
-
-#print(cart.sfx.get_note(0, 0))
-#print(cart.sfx.get_note(0, 8))
