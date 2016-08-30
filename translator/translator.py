@@ -1,6 +1,8 @@
 import math
 
 PICO8_MAX_PITCH = 63
+PICO8_MS_PER_TICK = 8.33333#1 / (60 * 16)
+MIDI_DEFAULT_BPM = 120
 
 class Note:
     def __init__(self):
@@ -91,22 +93,43 @@ class Translator:
     # song.  Then, use math along with the BPM to convert that to the
     # equivalent PICO-8 note duration
     def find_note_duration(self):
-        # TODO: Find the BPM
-
-        # Find microseconds per MIDI quarter note
+        ppq = self.midiFile.ticksPerQuarterNote
+        ## Find the PPQ from the first TIME_SIGNATURE event
         #for track in self.midiFile.tracks:
         #    for e, event in enumerate(track.events):
-        #        if event.type == 'SET_TEMPO':
+        #        if event.type == 'TIME_SIGNATURE':
         #            print(event)
-                    #tempo = event.time
-                    #return tempo
+        #            ppq = event.data[2]
+        #            #break
 
-        #print('Could not find Set Tempo event in MIDI; falling back to default')
-        # Default to 120 BPM
-        # return 120 / self.ticksPerNote
+        # Find the microseconds per MIDI quarter note from the first SET_TEMPO
+        # event
+        mpqn = None
+        for track in self.midiFile.tracks:
+            for e, event in enumerate(track.events):
+                if event.type == 'SET_TEMPO':
+                    mpqn = int.from_bytes(
+                            event.data,
+                            byteorder='big',
+                            signed=False)
+                    break
+
+
+        if mpqn != None:
+            bpm = 60000000 / mpqn
+        else:
+            bpm = MIDI_DEFAULT_BPM
+
+        midiMsPerTick = 60000 / (bpm * ppq)
 
         # DEBUG
-        return 12
+        #print('ppq: ' + str(ppq))
+        #print('mpqn: ' + str(mpqn))
+        #print('bpm: ' + str(bpm))
+        #print('MIDI msPerTick: ' + str(midiMsPerTick))
+        #print('PICO-8 msPerTick: ' + str(PICO8_MS_PER_TICK))
+
+        return round(self.ticksPerNote * (midiMsPerTick / PICO8_MS_PER_TICK))
 
     def convert_ticks_to_notelength(self, deltaTime):
         if self.settings.quantization:
@@ -150,8 +173,8 @@ class Translator:
 
                     # If this is the first note in this track
                     if len(picoNotes) == 0:
-                        # Add information on how many PICO-8 notes to wait before
-                        # starting this channel
+                        # Add information on how many PICO-8 notes to wait
+                        # before starting this channel
                         prevDelta = track.events[e - 1].time
                         length = self.convert_ticks_to_notelength(prevDelta)
                         note.startDelay = length
