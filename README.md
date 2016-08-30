@@ -5,7 +5,7 @@
 * python 3.5
 
 ## How To Use
-    main.py <yourfile.MID>
+    main.py <yourfile.mid>
 This will generate a PICO-8 cartridge called `midi_out.p8`
 
 ## Please Note
