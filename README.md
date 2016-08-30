@@ -54,3 +54,6 @@ try to implement in the future:
 * Effects (especially putting a fadeout at the end of notes so they don't run
   together)
 * An automatic best guess MIDI-instrument-to-PICO-8-waveform mapping table
+* Automatic or manual combination of multiple tracks into one (in places where
+  both are not playing notes at the same time)
+* MIDI file type 0 support
