@@ -2,6 +2,7 @@ import math
 
 PICO8_MAX_PITCH = 63
 PICO8_MS_PER_TICK = 8.33333#1 / (60 * 16)
+PICO8_MIN_NOTE_DURATION = 1
 MIDI_DEFAULT_BPM = 120
 
 class Note:
@@ -129,7 +130,10 @@ class Translator:
         #print('MIDI msPerTick: ' + str(midiMsPerTick))
         #print('PICO-8 msPerTick: ' + str(PICO8_MS_PER_TICK))
 
-        return round(self.ticksPerNote * (midiMsPerTick / PICO8_MS_PER_TICK))
+        d = round(self.ticksPerNote * (midiMsPerTick / PICO8_MS_PER_TICK))
+        if d < PICO8_MIN_NOTE_DURATION:
+            d = PICO8_MIN_NOTE_DURATION
+        return d
 
     def convert_ticks_to_notelength(self, deltaTime):
         if self.settings.quantization:
