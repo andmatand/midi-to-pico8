@@ -60,3 +60,4 @@ try to implement in the future:
   both are not playing notes at the same time)
 * MIDI file type 0 support
 * Drums (channel 10) support
+* Tempo changes during the song
