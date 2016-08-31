@@ -64,23 +64,6 @@ lines = [
     'end']
 cart.lua.update_from_lines(lines)
 
-# Prepend empty notes to the beginning of each track based on the track's
-# startDelay
-for t, track in enumerate(tracks):
-    if track[0].startDelay != None:
-        trackOffset = track[0].startDelay
-
-        for i in range(trackOffset):
-            track.insert(0, None)
-
-        ## offset by whole music patterns
-        musicOffset = math.floor(trackOffset / PICO8_NOTES_PER_SFX)
-        musicIndex = musicOffset - 1
-
-        ## offset the remaining individual notes
-        noteOffset = trackOffset % PICO8_NOTES_PER_SFX
-        noteIndex = noteOffset - 1
-
 # DEBUG: add notes from track 4 into track 3 if track 3's slot is empty
 #for n, note in enumerate(tracks[3]):
 #    if note == None or note['volume'] == 0:

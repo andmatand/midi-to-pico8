@@ -9,7 +9,6 @@ class Note:
     def __init__(self):
         self.pitch = None
         self.volume = None
-        self.startDelay = None
 
 class TranslatorSettings:
     def __init__(self):
@@ -165,30 +164,37 @@ class Translator:
 
         for t, track in enumerate(self.midiFile.tracks):
             picoNotes = []
+            deltaTime = 0
+            activeNote = None
+            firstNoteHasBeenAdded = False
 
             for e, event in enumerate(track.events):
+                if event.type == 'DeltaTime':
+                    deltaTime += event.time
                 if event.type == 'NOTE_ON' or event.type == 'NOTE_OFF':
-                    note = Note()
-                    note.pitch = event.pitch - 36
-                    note.volume = math.floor((event.velocity / 127) * 7)
+                    activeLength = self.convert_ticks_to_notelength(deltaTime)
+                    deltaTime = 0
+
+                    if not firstNoteHasBeenAdded:
+                        firstNoteHasBeenAdded = True
+                        # If this is the first note in this track, add empty
+                        # notes before this to delay the start until the
+                        # correct time
+                        for i in range(activeLength):
+                            picoNotes.append(None)
+
+                    if activeNote != None:
+                        # Repeat the active PICO-8 note as necessary to match
+                        # the length of the MIDI note
+                        for i in range(activeLength):
+                            picoNotes.append(activeNote)
+
+                    activeNote = Note()
+                    activeNote.pitch = event.pitch - 36
+                    activeNote.volume = math.floor((event.velocity / 127) * 7)
 
                     if event.type == 'NOTE_OFF':
-                        note.volume = 0
-
-                    # If this is the first note in this track
-                    if len(picoNotes) == 0:
-                        # Add information on how many PICO-8 notes to wait
-                        # before starting this channel
-                        prevDelta = track.events[e - 1].time
-                        length = self.convert_ticks_to_notelength(prevDelta)
-                        note.startDelay = length
-
-                    # Repeat the PICO-8 note as necessary to match the
-                    # length of the MIDI note
-                    deltaTime = track.events[e + 1].time
-                    picoNoteCount = self.convert_ticks_to_notelength(deltaTime)
-                    for i in range(picoNoteCount):
-                        picoNotes.append(note)
+                        activeNote.volume = 0
 
             if len(picoNotes) > 0:
                 picoTracks.append(picoNotes)
@@ -203,33 +209,38 @@ class Translator:
             # * will actually fit in PICO-8 tracker space limits
             actualNoteCount = 0
             for note in track:
-                if note.volume > 0:
-                    actualNoteCount += 1
+                if note != None: 
+                    if note.volume > 0:
+                        actualNoteCount += 1
             
             # Count how many notes' pitches in this track are below PICO-8 range
             tooLowCount = 0
             for note in track:
-                if note.volume > 0 and note.pitch < 0:
-                    tooLowCount += 1
+                if note != None:
+                    if note.volume > 0 and note.pitch < 0:
+                        tooLowCount += 1
 
             # Count how many notes' pitches in this track are above PICO-8
             # range
             tooHighCount = 0
             for note in track:
-                if note.volume > 0 and note.pitch > PICO8_MAX_PITCH:
-                    tooHighCount += 1
+                if note != None:
+                    if note.volume > 0 and note.pitch > PICO8_MAX_PITCH:
+                        tooHighCount += 1
 
             # If the majority are too low
             if tooLowCount >= (actualNoteCount / 2):
                 print('pitching out-of-range track {0} up an octave'.format(t))
                 # Add an octave to every note in this track
                 for note in track:
-                    note.pitch += 12
+                    if note != None:
+                        note.pitch += 12
             # If the majority are too high
             elif tooHighCount >= (actualNoteCount / 2):
                 print('pitching out-of-range track {0} down an octave'.format(t))
                 # Subtract an octave from every note in this track
                 for note in track:
-                    note.pitch -= 12
+                    if note != None:
+                        note.pitch -= 12
 
 
