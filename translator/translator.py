@@ -1,3 +1,4 @@
+import copy
 import math
 
 PICO8_MAX_PITCH = 63
@@ -9,6 +10,7 @@ class Note:
     def __init__(self):
         self.pitch = None
         self.volume = None
+        self.effect = None
 
 class TranslatorSettings:
     def __init__(self):
@@ -184,10 +186,27 @@ class Translator:
                             picoNotes.append(None)
 
                     if activeNote != None:
+                        # If we are adding a note right after a different note
+                        # finished
+                        if len(picoNotes) > 0:
+                            prevNote = picoNotes[-1]
+                        else:
+                            prevNote = None
+                        if activeLength > 0 and prevNote != None:
+                            if activeNote.volume > 0 and prevNote.volume > 0:
+                                # Give a fade-out effect to the last PICO-8
+                                # note in the previous series
+                                picoNotes[-1].effect = 5
+
                         # Repeat the active PICO-8 note as necessary to match
                         # the length of the MIDI note
                         for i in range(activeLength):
-                            picoNotes.append(activeNote)
+                            picoNotes.append(copy.copy(activeNote))
+
+                        #if activeLength > 0:
+                        #    # Give a fade-out effect to the last PICO-8 note in
+                        #    # the series
+                        #    picoNotes[-1].effect = 5
 
                     activeNote = Note()
                     activeNote.pitch = event.pitch - 36

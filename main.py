@@ -113,6 +113,7 @@ while sfxIndex < PICO8_NUM_SFX:
                             sfxNoteIndex,
                             pitch = note.pitch,
                             volume = note.volume,
+                            effect = note.effect,
                             waveform = pico8Config['waveforms'][t])
             trackNoteIndex += 1 
 
