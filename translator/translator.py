@@ -2,9 +2,11 @@ import copy
 import math
 
 PICO8_MAX_PITCH = 63
-PICO8_MS_PER_TICK = 500 / 60
 PICO8_MIN_NOTE_DURATION = 1
 MIDI_DEFAULT_BPM = 120
+
+# According to https://eev.ee/blog/2016/05/30/extracting-music-from-the-pico-8/
+PICO8_MS_PER_TICK = (183 / 22050) * 1000
 
 class Note:
     def __init__(self):
