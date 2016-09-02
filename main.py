@@ -1,5 +1,6 @@
 #!/usr/bin/env python3.5
 
+import argparse
 import math
 import sys
 from translator import translator
@@ -22,26 +23,27 @@ pico8Config = {
     'waveforms': [1, 2, 3, 1],
 }
 
+# Parse command-line arguments
+argParser = argparse.ArgumentParser()
+argParser.add_argument("midiPath", help="The MIDI file to be translated")
+argParser.add_argument("--legato", help="", action="store_true")
+argParser.add_argument("--no-quantize", help="Do not perform any quantization of note lengths", action="store_true")
 
-def parse_command_line_args():
-    global path
+# Set the MIDI path
+args = argParser.parse_args()
 
-    if len(sys.argv) < 2:
-        print('usage: main.py <MIDI FILENAME> [Ticks Per Quarter Note]')
-        sys.exit(1)
-
-    # Get the filename from the 1st command line argument
-    path = sys.argv[1]
-
-
-parse_command_line_args()
+# Set translator settings according to command-line arugments
+print(args)
+translatorSettings = TranslatorSettings()
+translatorSettings.quantization = not args.noQuantize
+translatorSettings.quantization = not args.noQuantize
 
 # Open the MIDI file
 midiFile = midi.MidiFile()
-midiFile.open(path)
+midiFile.open(args.midiPath)
 midiFile.read()
 
-translator = translator.Translator(midiFile)
+translator = translator.Translator(midiFile, translatorSettings)
 
 translator.analyze()
 

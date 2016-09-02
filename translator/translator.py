@@ -17,6 +17,7 @@ class Note:
 class TranslatorSettings:
     def __init__(self):
         self.quantization = True
+        self.legato = False
 
 class Translator:
     def __init__(self, midiFile, settings: TranslatorSettings=None): 
