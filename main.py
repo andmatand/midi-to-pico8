@@ -51,6 +51,11 @@ argParser.add_argument(
         '--ticks-per-note',
         help="Override MIDI ticks per smallest note subdivision",
         type=int)
+argParser.add_argument(
+        '--start-offset',
+        help="Offset the starting note number (in PICO-8 notes)",
+        type=int,
+        default=0)
 
 args = argParser.parse_args()
 
@@ -103,6 +108,10 @@ if len(tracks) > PICO8_NUM_CHANNELS:
     print("Warning: discarding some tracks we don't have room for")
     tracks = tracks[:PICO8_NUM_CHANNELS]
 
+if args.start_offset > 0:
+    for t, track in enumerate(tracks):
+        tracks[t] = track[args.start_offset:]
+
 # Set the note duration of all SFXes
 for sfxIndex in range(PICO8_NUM_SFX):
     cart.sfx.set_properties(
@@ -126,7 +135,7 @@ while sfxIndex < PICO8_NUM_SFX:
             if trackNoteIndex > len(track) - 1:
                 break
             note = track[trackNoteIndex]
-            if note != None:
+            if note != None and note.volume > 0:
                 wroteAnyNotesToSfx = True
                 noteIsInRange = (note.pitch >= 0 and
                                  note.pitch <= PICO8_MAX_PITCH)
