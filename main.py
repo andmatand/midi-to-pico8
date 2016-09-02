@@ -14,9 +14,6 @@ PICO8_NUM_SFX = 64
 PICO8_NUM_MUSIC = 64
 PICO8_MAX_PITCH = 63
 
-# TODO: make this settable via CLI argument
-CART_PATH = 'midi_out.p8'
-
 # Song-Specific Config
 pico8Config = {
     'noteDuration': 14,
@@ -25,18 +22,40 @@ pico8Config = {
 
 # Parse command-line arguments
 argParser = argparse.ArgumentParser()
-argParser.add_argument("midiPath", help="The MIDI file to be translated")
-argParser.add_argument("--legato", help="", action="store_true")
-argParser.add_argument("--no-quantize", help="Do not perform any quantization of note lengths", action="store_true")
+argParser.add_argument(
+        'midiPath',
+        help="The path to the MIDI file to be translated")
+argParser.add_argument(
+        'cartPath',
+        help="The path to PICO-8 cartridge file to be generated",
+        nargs='?',
+        default='midi_out.p8')
+argParser.add_argument(
+        '--legato',
+        help="Disable fadeout effect at the end of any notes (even repeated " +
+             "notes)",
+        action="store_true")
+argParser.add_argument(
+        '--staccato',
+        help="Add a fadeout effect at the end of every note",
+        action='store_true')
+argParser.add_argument(
+        '--no-quantize',
+        help="Do not perform any quantization of note lengths",
+        action='store_true')
+argParser.add_argument(
+        '--ticks-per-note',
+        help="Override MIDI ticks per smallest note subdivision",
+        type=int)
 
-# Set the MIDI path
 args = argParser.parse_args()
 
 # Set translator settings according to command-line arugments
-print(args)
-translatorSettings = TranslatorSettings()
-translatorSettings.quantization = not args.noQuantize
-translatorSettings.quantization = not args.noQuantize
+translatorSettings = translator.TranslatorSettings()
+translatorSettings.quantization = not args.no_quantize
+translatorSettings.ticksPerNoteOverride = args.ticks_per_note
+translatorSettings.staccato = args.staccato
+translatorSettings.legato = args.legato
 
 # Open the MIDI file
 midiFile = midi.MidiFile()
@@ -48,7 +67,7 @@ translator = translator.Translator(midiFile, translatorSettings)
 translator.analyze()
 
 # Get all the notes converted to PICO-8-like notes
-tracks = translator.get_tracks()
+tracks = translator.get_pico_tracks()
 
 # DEBUG
 #for t, track in enumerate(tracks):
@@ -147,5 +166,5 @@ while sfxIndex < PICO8_NUM_SFX:
         break
 
 # Write the cart
-with open(CART_PATH, 'w', encoding='utf-8') as fh:
+with open(args.cartPath, 'w', encoding='utf-8') as fh:
     cart.to_p8_file(fh)
