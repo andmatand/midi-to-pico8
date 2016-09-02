@@ -23,6 +23,7 @@ class TranslatorSettings:
         self.staccato = False
         self.legato = False
         self.fixOctaves = True
+        self.noteDurationOverride = None
 
 class Translator:
     def __init__(self, midiFile, settings: TranslatorSettings=None): 
@@ -108,6 +109,9 @@ class Translator:
     # song.  Then, use math along with the BPM to convert that to the
     # equivalent PICO-8 note duration
     def find_note_duration(self):
+        if self.settings.noteDurationOverride != None:
+            return self.settings.noteDurationOverride
+
         ppq = self.midiFile.ticksPerQuarterNote
         ## Find the PPQ from the first TIME_SIGNATURE event
         #for track in self.midiFile.tracks:

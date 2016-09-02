@@ -48,8 +48,14 @@ argParser.add_argument(
         help="Do not perform any quantization of note lengths",
         action='store_true')
 argParser.add_argument(
-        '--ticks-per-note',
-        help="Override MIDI ticks per smallest note subdivision",
+        '-t',
+        '--midi-ticks-per-note',
+        help="Override MIDI ticks per PICO-8 note setting (normally auto-detected)",
+        type=int)
+argParser.add_argument(
+        '-d',
+        '--note-duration',
+        help="Override PICO-8 note duration setting (normally auto-detected from MIDI tempo)",
         type=int)
 argParser.add_argument(
         '--start-offset',
@@ -62,10 +68,11 @@ args = argParser.parse_args()
 # Set translator settings according to command-line arugments
 translatorSettings = translator.TranslatorSettings()
 translatorSettings.quantization = not args.no_quantize
-translatorSettings.ticksPerNoteOverride = args.ticks_per_note
+translatorSettings.ticksPerNoteOverride = args.midi_ticks_per_note
 translatorSettings.staccato = args.staccato
 translatorSettings.legato = args.legato
 translatorSettings.fixOctaves = not args.no_fix_octaves
+translatorSettings.noteDurationOverride = args.note_duration
 
 # Open the MIDI file
 midiFile = midi.MidiFile()

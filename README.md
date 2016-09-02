@@ -6,7 +6,7 @@
 
 ## How To Use
     usage: awyeah.py [-h] [--legato] [--staccato] [--no-fix-octaves]
-                     [--no-quantize] [--ticks-per-note TICKS_PER_NOTE]
+                     [--no-quantize] [-t MIDI_TICKS_PER_NOTE] [-d NOTE_DURATION]
                      [--start-offset START_OFFSET]
                      midiPath [cartPath]
     
@@ -22,8 +22,12 @@
       --no-fix-octaves      Do not change octaves of tracks to keep them in PICO-8
                             range
       --no-quantize         Do not perform any quantization of note lengths
-      --ticks-per-note TICKS_PER_NOTE
-                            Override MIDI ticks per smallest note subdivision
+      -t MIDI_TICKS_PER_NOTE, --midi-ticks-per-note MIDI_TICKS_PER_NOTE
+                            Override MIDI ticks per PICO-8 note setting (normally
+                            auto-detected)
+      -d NOTE_DURATION, --note-duration NOTE_DURATION
+                            Override PICO-8 note duration setting (normally auto-
+                            detected from MIDI tempo)
       --start-offset START_OFFSET
                             Offset the starting note number (in PICO-8 notes)
 
