@@ -22,6 +22,7 @@ class TranslatorSettings:
         self.ticksPerNoteOverride = None
         self.staccato = False
         self.legato = False
+        self.fixOctaves = True
 
 class Translator:
     def __init__(self, midiFile, settings: TranslatorSettings=None): 
@@ -253,48 +254,49 @@ class Translator:
                     picoTracks.append(picoTrack)
 
         print('got a total of {0} translated tracks'.format(len(picoTracks)))
+
+        if self.settings.fixOctaves:
+            picoTracks = self.adjust_octaves(picoTracks)
+
         return picoTracks
 
     def adjust_octaves(self, tracks):
         for t, track in enumerate(tracks):
-            # Count how many actual notes are in this track, where "actual
-            # notes" are those who have the following characteristics:
-            # * volume greater than 0
-            # * will actually fit in PICO-8 tracker space limits
-            actualNoteCount = 0
-            for note in track:
-                if note != None: 
-                    if note.volume > 0:
-                        actualNoteCount += 1
-            
-            # Count how many notes' pitches in this track are below PICO-8 range
-            tooLowCount = 0
-            for note in track:
-                if note != None:
-                    if note.volume > 0 and note.pitch < 0:
-                        tooLowCount += 1
+            while True:
+                trackGoesTooLow = False
+                trackGoesTooHigh = False
 
-            # Count how many notes' pitches in this track are above PICO-8
-            # range
-            tooHighCount = 0
-            for note in track:
-                if note != None:
-                    if note.volume > 0 and note.pitch > PICO8_MAX_PITCH:
-                        tooHighCount += 1
+                # Check if any notes are out of range
+                for note in track:
+                    if note != None and note.volume > 0:
+                        if note.pitch < 0:
+                            trackGoesTooLow = True
+                        elif note.pitch > PICO8_MAX_PITCH:
+                            trackGoesTooHigh = True
 
-            # If the majority are too low
-            if tooLowCount >= (actualNoteCount / 2):
-                print('pitching out-of-range track {0} up an octave'.format(t))
-                # Add an octave to every note in this track
-                for note in track:
-                    if note != None:
-                        note.pitch += 12
-            # If the majority are too high
-            elif tooHighCount >= (actualNoteCount / 2):
-                print('pitching out-of-range track {0} down an octave'.format(t))
-                # Subtract an octave from every note in this track
-                for note in track:
-                    if note != None:
-                        note.pitch -= 12
+                if trackGoesTooLow and trackGoesTooHigh:
+                    print('track {0} goes out of range in both directions; ' +
+                          'octave will not be adjusted'.format(t))
+                    break
+                elif trackGoesTooLow:
+                    print('pitching out-of-range track {0} up an octave'.
+                          format(t))
+                    # Add an octave to every note in this track
+                    for note in track:
+                        if note != None:
+                            note.pitch += 12
+
+                elif trackGoesTooHigh:
+                    print('pitching out-of-range track {0} down an octave'.
+                          format(t))
+                    # Subtract an octave from every note in this track
+                    for note in track:
+                        if note != None:
+                            note.pitch -= 12
+                else:
+                    break
+
+        return tracks
+
 
 

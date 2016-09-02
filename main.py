@@ -40,6 +40,10 @@ argParser.add_argument(
         help="Add a fadeout effect at the end of every note",
         action='store_true')
 argParser.add_argument(
+        '--no-fix-octaves',
+        help="Do not change octaves of tracks to keep them in PICO-8 range",
+        action='store_true')
+argParser.add_argument(
         '--no-quantize',
         help="Do not perform any quantization of note lengths",
         action='store_true')
@@ -56,6 +60,7 @@ translatorSettings.quantization = not args.no_quantize
 translatorSettings.ticksPerNoteOverride = args.ticks_per_note
 translatorSettings.staccato = args.staccato
 translatorSettings.legato = args.legato
+translatorSettings.fixOctaves = not args.no_fix_octaves
 
 # Open the MIDI file
 midiFile = midi.MidiFile()
@@ -74,8 +79,6 @@ tracks = translator.get_pico_tracks()
 #    print('track ' + str(t))
 #    for n, note in enumerate(track):
 #        print(n, note.pitch, note.volume)
-
-translator.adjust_octaves(tracks)
 
 # Make an empty PICO-8 catridge
 cart = game.Game.make_empty_game()
