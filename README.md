@@ -5,9 +5,10 @@
 * python 3.5
 
 ## How To Use
-    usage: main.py [-h] [--legato] [--staccato] [--no-fix-octaves] [--no-quantize]
-                   [--ticks-per-note TICKS_PER_NOTE] [--start-offset START_OFFSET]
-                   midiPath [cartPath]
+    usage: awyeah.py [-h] [--legato] [--staccato] [--no-fix-octaves]
+                     [--no-quantize] [--ticks-per-note TICKS_PER_NOTE]
+                     [--start-offset START_OFFSET]
+                     midiPath [cartPath]
     
     positional arguments:
       midiPath              The path to the MIDI file to be translated
