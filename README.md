@@ -5,8 +5,26 @@
 * python 3.5
 
 ## How To Use
-    main.py <yourfile.mid>
-This will generate a PICO-8 cartridge called `midi_out.p8`
+    usage: main.py [-h] [--legato] [--staccato] [--no-fix-octaves] [--no-quantize]
+                   [--ticks-per-note TICKS_PER_NOTE] [--start-offset START_OFFSET]
+                   midiPath [cartPath]
+    
+    positional arguments:
+      midiPath              The path to the MIDI file to be translated
+      cartPath              The path to PICO-8 cartridge file to be generated
+    
+    optional arguments:
+      -h, --help            show this help message and exit
+      --legato              Disable fadeout effect at the end of any notes (even
+                            repeated notes)
+      --staccato            Add a fadeout effect at the end of every note
+      --no-fix-octaves      Do not change octaves of tracks to keep them in PICO-8
+                            range
+      --no-quantize         Do not perform any quantization of note lengths
+      --ticks-per-note TICKS_PER_NOTE
+                            Override MIDI ticks per smallest note subdivision
+      --start-offset START_OFFSET
+                            Offset the starting note number (in PICO-8 notes)
 
 ## Please Note
 MIDI format stores music in a conceptually different way than PICO-8's tracker
