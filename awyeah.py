@@ -49,7 +49,7 @@ argParser.add_argument(
         action='store_true')
 argParser.add_argument(
         '-t',
-        '--midi-ticks-per-note',
+        '--midi-base-ticks',
         help="Override MIDI ticks per PICO-8 note setting (normally auto-detected)",
         type=int)
 argParser.add_argument(
@@ -68,7 +68,7 @@ args = argParser.parse_args()
 # Set translator settings according to command-line arugments
 translatorSettings = translator.TranslatorSettings()
 translatorSettings.quantization = not args.no_quantize
-translatorSettings.ticksPerNoteOverride = args.midi_ticks_per_note
+translatorSettings.ticksPerNoteOverride = args.midi_base_ticks
 translatorSettings.staccato = args.staccato
 translatorSettings.legato = args.legato
 translatorSettings.fixOctaves = not args.no_fix_octaves
