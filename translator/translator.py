@@ -81,7 +81,7 @@ class Translator:
 
     def find_notes(self, track, channel):
         notes = []
-        activeNotes = []
+        activeNote = None
         deltaTime = 0
         firstNoteHasBeenAdded = False
 
@@ -93,15 +93,9 @@ class Translator:
             if event.type == 'DeltaTime':
                 deltaTime += event.time
             if event.type == 'NOTE_ON' or event.type == 'NOTE_OFF':
-                existingNote = next(
-                    (note for note in activeNotes
-                     if note.midiPitch == event.pitch and
-                     note.midiChannel == event.channel),
-                    None)
-
-                if existingNote != None:
-                    existingNote.midiDuration = deltaTime
-                    activeNotes.remove(existingNote)
+                if activeNote != None:
+                    activeNote.midiDuration = deltaTime
+                    activeNote = None
                 elif deltaTime > 0:
                     note = Note()
                     note.midiDuration = deltaTime
@@ -109,7 +103,7 @@ class Translator:
 
                 if event.type == 'NOTE_ON' and event.velocity > 0:
                     note = Note(event)
-                    activeNotes.append(note)
+                    activeNote = note
                     notes.append(note)
 
                 deltaTime = 0
@@ -302,60 +296,6 @@ class Translator:
                 picoTrack.append(noteCopy)
 
         return picoTrack
-        
-    #def get_pico_track_old(self, track, channel):
-    #    picoNotes = []
-    #    deltaTime = 0
-    #    activeNote = None
-    #    firstNoteHasBeenAdded = False
-
-    #    # Filter to only events on the specified channel
-    #    #print(channel)
-    #    events = [
-    #            event for event in track.events
-    #            if event.channel == channel or event.type == 'DeltaTime']
-
-    #    for e, event in enumerate(events):
-    #        if event.type == 'DeltaTime':
-    #            deltaTime += event.time
-    #        if event.type == 'NOTE_ON' or event.type == 'NOTE_OFF':
-    #            activeLength = self.convert_ticks_to_notelength(deltaTime)
-    #            deltaTime = 0
-
-    #            if not firstNoteHasBeenAdded:
-    #                firstNoteHasBeenAdded = True
-    #                # If this is the first note in this track, add empty notes
-    #                # before this to delay the start until the correct time
-    #                for i in range(activeLength):
-    #                    picoNotes.append(None)
-
-    #            if activeNote != None:
-    #                if not self.settings.legato:
-    #                    # If we are adding a note right after a different note
-    #                    # finished
-    #                    if len(picoNotes) > 0:
-    #                        prevNote = picoNotes[-1]
-    #                    else:
-    #                        prevNote = None
-    #                    if activeLength > 0 and prevNote != None:
-    #                        if activeNote.volume > 0 and prevNote.volume > 0:
-    #                            needFadeOut = activeNote.pitch == prevNote.pitch
-    #                            if needFadeOut or self.settings.staccato:
-    #                                # Give a fade-out effect to the last PICO-8
-    #                                # note in the previous series
-    #                                picoNotes[-1].effect = 5
-
-    #                # Repeat the active PICO-8 note as necessary to match the
-    #                # length of the MIDI note
-    #                for i in range(activeLength):
-    #                    picoNotes.append(copy.copy(activeNote))
-
-    #            activeNote = Note(event)
-
-    #            if event.type == 'NOTE_OFF':
-    #                activeNote.volume = 0
-
-    #    return picoNotes
 
     def find_occupied_channels(self, track):
         occupiedChannels = []
@@ -367,15 +307,6 @@ class Translator:
         return occupiedChannels
 
     def get_pico_tracks(self):
-        # DEBUG
-        #i = 0
-        #for event in self.midiFile.tracks[1].events:
-        #    if event.type == 'NOTE_ON':
-        #        i += 1
-        #        print(i, event)
-        #    else:
-        #        print('', event)
-
         picoTracks = []
 
         for t, track in enumerate(self.midiFile.tracks):
@@ -384,8 +315,14 @@ class Translator:
             for channel in usedChannels:
                 picoTrack = self.get_pico_track(track, channel)
 
+                hasAudibleNotes = False
+                for note in picoTrack:
+                    if note != None and note.volume > 0:
+                        hasAudibleNotes = True
+                        break
+
                 # If this track has any notes
-                if len(picoTrack) > 0:
+                if len(picoTrack) > 0 and hasAudibleNotes:
                     picoTracks.append(picoTrack)
 
         print('got a total of {0} translated tracks'.format(len(picoTracks)))
