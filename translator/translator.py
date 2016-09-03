@@ -334,6 +334,8 @@ class Translator:
 
     def adjust_octaves(self, tracks):
         for t, track in enumerate(tracks):
+            raised = False
+            lowered = False
             while True:
                 trackGoesTooLow = False
                 trackGoesTooHigh = False
@@ -354,6 +356,7 @@ class Translator:
                     print('pitching out-of-range track {0} up an octave'.
                           format(t))
                     # Add an octave to every note in this track
+                    raised = True
                     for note in track:
                         if note != None and note.pitch != None:
                             note.pitch += 12
@@ -362,10 +365,15 @@ class Translator:
                     print('pitching out-of-range track {0} down an octave'.
                           format(t))
                     # Subtract an octave from every note in this track
+                    lowered = True
                     for note in track:
                         if note != None and note.pitch != None:
                             note.pitch -= 12
                 else:
+                    break
+
+                # Prevent ping-ponging back and forth infinitely
+                if raised and lowered:
                     break
 
         return tracks
