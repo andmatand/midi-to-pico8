@@ -1,5 +1,6 @@
 import copy
 import math
+import statistics
 
 MIDI_DEFAULT_BPM = 120
 MIDI_MAX_CHANNELS = 16
@@ -116,7 +117,7 @@ class Translator:
         return notes
 
     def analyze(self):
-        # Get a list of unique note lengths and the number of occurences of
+        # Get a list of unique note lengths and the number of occurrences of
         # each length
         uniqueLengths = {}
         noteCount = 0
@@ -153,16 +154,29 @@ class Translator:
         print('note count: ' + str(noteCount))
         print('most frequent length: ' + str(mostFrequentLength))
 
+        # Find the average number of occurrences for a unique length
+        averageOccurences = statistics.mean(uniqueLengths.values())
+        print('mean occurrences: ' + str(averageOccurences))
+        print('median occurrences: ' +
+              str(statistics.median(uniqueLengths.values())))
+
+        # Remove lengths from uniqueLengths that have less than the average
+        # number of occurrences
+        newUniqueLengths = {}
+        for length, occurrences in uniqueLengths.items():
+            if occurrences >= averageOccurences:
+                newUniqueLengths[length] = occurrences
+        uniqueLengths = newUniqueLengths
+
         # Take each length and divide the other lengths by it, counting how
         # many other lengths it divides evenly into
         candidateBaseLengths = {}
-        for length, occurences in uniqueLengths.items():
+        for length, occurrences in uniqueLengths.items():
             for otherLength in uniqueLengths.keys():
-                if otherLength != length:
-                    if otherLength % length == 0:
-                        if not length in candidateBaseLengths:
-                            candidateBaseLengths[length] = 0
-                        candidateBaseLengths[length] += 1
+                if otherLength % length == 0:
+                    if not length in candidateBaseLengths:
+                        candidateBaseLengths[length] = 0
+                    candidateBaseLengths[length] += 1
 
         # DEBUG
         print('candidate base lengths:')
@@ -173,17 +187,13 @@ class Translator:
         for length, score in sortedCandidateBaseLengths:
             print(length, score)
 
+
         # Find the best of the candidate base-lengths, where "best" is the one
         # with the most even divisions into other lengths. If there is a tie,
         # prefer the shortest candidate base-length.
         bestBaseLength = None
         highestNumberOfEvenDivisions = 0
         for length, evenDivisionCount in candidateBaseLengths.items():
-            # If this length is an "outlier", i.e the length occurs on less
-            # than 5% of all notes
-            if (evenDivisionCount / noteCount) < 0.05:
-                continue
-
             if evenDivisionCount > highestNumberOfEvenDivisions:
                 highestNumberOfEvenDivisions = evenDivisionCount
                 bestBaseLength = length
