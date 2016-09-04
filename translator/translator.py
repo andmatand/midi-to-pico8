@@ -9,6 +9,7 @@ MIDI_TO_PICO8_PITCH_SUBTRAHEND = 36
 
 PICO8_MAX_PITCH = 63
 PICO8_MIN_NOTE_DURATION = 1
+PICO8_NOTES_PER_SFX = 32
 
 # According to https://eev.ee/blog/2016/05/30/extracting-music-from-the-pico-8/
 PICO8_MS_PER_TICK = (183 / 22050) * 1000
@@ -24,7 +25,9 @@ class Note:
         # PICO-8 tracker properties
         self.pitch = None
         self.volume = 0
+        self.waveform = None
         self.effect = None
+        self.length = 0
 
         if event != None:
             self.midiPitch = event.pitch
@@ -32,6 +35,11 @@ class Note:
             self.midiVelocity = event.velocity
             self.pitch = event.pitch - MIDI_TO_PICO8_PITCH_SUBTRAHEND
             self.volume = math.floor((event.velocity / 127) * 7)
+
+class Sfx:
+    def __init__(self, notes):
+        self.notes = notes
+        self.noteDuration = None
 
 class TranslatorSettings:
     def __init__(self):
@@ -55,29 +63,6 @@ class Translator:
             print('setting ticks per note to override setting of ' +
                   str(self.settings.ticksPerNoteOverride))
         self.baseTicks = self.settings.ticksPerNoteOverride
-
-    #def find_notes_any_channel(self, track):
-    #    notes = []
-    #    activeNote = None
-    #    deltaTime = 0
-
-    #    for e, event in enumerate(track.events):
-    #        if event.type == 'DeltaTime':
-    #            deltaTime += event.time
-    #        if event.type == 'NOTE_ON' or event.type == 'NOTE_OFF':
-    #            if activeNote != None:
-    #                activeNote.midiDuration = deltaTime
-    #                if deltaTime == 40:
-    #                    print(event)
-    #            deltaTime = 0
-
-    #            activeNote = Note(event)
-    #            notes.append(activeNote)
-
-    #            if event.type == 'NOTE_OFF':
-    #                activeNote.volume = 0
-
-    #    return notes
 
     def find_notes(self, track, channel):
         notes = []
@@ -111,6 +96,8 @@ class Translator:
         return notes
 
     def analyze(self):
+        print('MIDI format is type ' + str(self.midiFile.format))
+
         # Get a list of unique note lengths and the number of occurrences of
         # each length
         uniqueLengths = {}
@@ -130,12 +117,12 @@ class Translator:
 
         # DEBUG
         import operator
-        print('unique lengths:')
-        sortedUniqueLengths = sorted(
-            uniqueLengths.items(),
-            key=operator.itemgetter(1),
-            reverse=True)
-        print(sortedUniqueLengths)
+        #print('unique lengths:')
+        #sortedUniqueLengths = sorted(
+        #    uniqueLengths.items(),
+        #    key=operator.itemgetter(1),
+        #    reverse=True)
+        #print(sortedUniqueLengths)
 
         mostFrequentLength = None
         highestCount = 0
@@ -265,19 +252,19 @@ class Translator:
 
         return int(deltaTime / self.baseTicks)
 
-    def get_pico_track(self, track, channel):
+    def get_pico_notes(self, track, channel):
         picoTrack = []
 
         notes = self.find_notes(track, channel)
         for n, note in enumerate(notes):
-            length = self.convert_ticks_to_notelength(note.midiDuration)
-            for i in range(length):
+            note.length = self.convert_ticks_to_notelength(note.midiDuration)
+            for i in range(note.length):
                 # Create a copy of the note
                 noteCopy = copy.copy(note)
 
                 if not self.settings.legato:
                     # If this is the last copy of this note
-                    if i == length - 1:
+                    if i == note.length - 1:
                         # Find the next note
                         if n < len(notes) - 1:
                             nextNote = notes[n + 1]
@@ -306,31 +293,140 @@ class Translator:
 
         return occupiedChannels
 
-    def get_pico_tracks(self):
-        picoTracks = []
+    # Find all the note runs (where a "run" is a list of consecutive PICO-8
+    # notes that are all representing the same MIDI note) in a given list of
+    # notes
+    def find_note_runs(self, notes):
+        runs = []
 
-        for t, track in enumerate(self.midiFile.tracks):
+        run = []
+        for note in notes:
+            currentRunShouldEnd = False
+
+            noteBelongsToCurrentRun = False
+            prevNote = notes[-1]
+            if prevNote != None:
+                if (note.pitch == prevNote.pitch and
+                    note.volume == prevNote.volume and
+                    note.waveform == prevNote.waveform):
+                    noteBelongsToCurrentRun = True
+                elif note.volume == 0 and prevNote.volume == 0:
+                    noteBelongsToCurrentRun = True
+
+            # If this note should be added to the current run
+            if noteBelongsToCurrentRun or len(run) == 0:
+                run.append(note)
+
+                # If this note has an effect, it must be the last in the run
+                if note.effect != None:
+                    currentRunShouldEnd = True
+            else:
+                currentRunShouldEnd = True
+
+            if currentRunShouldEnd:
+                # End the current run
+                runs.append(run)
+
+                # Add the current note to a new run
+                run = [note]
+
+        return runs
+
+    # Look for N consecutive SFXes that can be combined into one with each
+    # note-run's length reduced (i.e. divided by N) and the note duration
+    # increased (i.e. multiplied by N) to compensate
+    def optimize_sfx_speeds(self, sfxes):
+        n = 2 # TODO start with higher numbers
+
+        for i in range(0, len(sfxes), n):
+            sfxGroup = sfxes[i:i + n]
+
+            sfxNoteRunLists = {}
+            for s, sfx in enumerate(sfxGroup):
+                sfxNoteRunLists[s] = self.find_note_runs(sfx.notes)
+
+            # Check if all note runs have lengths divisible by N
+            allRunsDivideEvenly = True
+            for runList in sfxNoteRunLists.values():
+                for run in runList:
+                    if len(run) % n != 0:
+                        allRunsDivideEvenly = False
+
+            if allRunsDivideEvenly:
+                print('Compacting SFX group by a factor of ' + str(n))
+
+                # Remove notes from each run
+                for runList in sfxNoteRunLists.values():
+                    for run in runList:
+                        newLength = len(run) / n
+                        run = run[:-newLength]
+
+                # Collect all the notes into a contiguous
+                allNotes = []
+                for runList in sfxNoteRunLists.values():
+                    for run in runList:
+                        allNotes.extend(run)
+
+                # Replace the first SFX's notes with the concatenation of all
+                # the now-shortened notes in the group of SFX
+                sfxGroup[0].notes = allNotes
+                sfxGroup[0].noteDuration *= n
+
+                # DEBUG
+                #for j in range(i + 1, i + n):
+                #    sfxGroup[j].notes = []
+
+                # TODO: Move over all the SFXes to close the gap
+                #for j in range(i + 1, i + n):
+                #    del sfxGroup[j]
+
+    def split_into_sfxes(self, notes):
+        sfxes = []
+
+        for i in range(0, len(notes), PICO8_NOTES_PER_SFX):
+            sfx = Sfx(notes[i:i + PICO8_NOTES_PER_SFX])
+            sfx.noteDuration = self.find_note_duration()
+            sfxes.append(sfx)
+
+        return sfxes
+
+    def get_sfx_lists(self):
+        picoNoteLists = []
+
+        for t, midiTrack in enumerate(self.midiFile.tracks):
             # Find the channels in use in this track
-            usedChannels = self.find_occupied_channels(track)
+            usedChannels = self.find_occupied_channels(midiTrack)
+
+            # Separate each channel into a "track"
             for channel in usedChannels:
-                picoTrack = self.get_pico_track(track, channel)
+                picoNotes = self.get_pico_notes(midiTrack, channel)
 
                 hasAudibleNotes = False
                 for note in picoTrack:
-                    if note != None and note.volume > 0:
+                    if note.volume > 0:
                         hasAudibleNotes = True
                         break
 
                 # If this track has any notes
-                if len(picoTrack) > 0 and hasAudibleNotes:
-                    picoTracks.append(picoTrack)
+                if len(picoNotes) > 0 and hasAudibleNotes:
+                    picoNoteLists.append(picoNotes)
+
+        if self.settings.fixOctaves:
+            picoNoteLists = self.adjust_octaves(picoNoteLists)
 
         print('got a total of {0} translated tracks'.format(len(picoTracks)))
 
-        if self.settings.fixOctaves:
-            picoTracks = self.adjust_octaves(picoTracks)
+        # OPTIMIZATION TODO: Try to combine tracks if they have no overlapping
+        # notes
 
-        return picoTracks
+        # Split each noteList into "SFX"es (i.e. 32-note chunks)
+        sfxLists = []
+        for t, noteList in enumerate(picoNoteLists):
+            sfxes = self.split_into_sfxes(noteList)
+            self.optimize_sfx_speeds(sfxes)
+            sfxLists.append(sfxes)
+
+        return sfxLists
 
     def adjust_octaves(self, tracks):
         for t, track in enumerate(tracks):
@@ -342,7 +438,7 @@ class Translator:
 
                 # Check if any notes are out of range
                 for note in track:
-                    if note != None and note.volume > 0 and note.pitch != None:
+                    if note.volume > 0 and note.pitch != None:
                         if note.pitch < 0:
                             trackGoesTooLow = True
                         elif note.pitch > PICO8_MAX_PITCH:
@@ -358,7 +454,7 @@ class Translator:
                     # Add an octave to every note in this track
                     raised = True
                     for note in track:
-                        if note != None and note.pitch != None:
+                        if note.pitch != None:
                             note.pitch += 12
 
                 elif trackGoesTooHigh:
@@ -367,7 +463,7 @@ class Translator:
                     # Subtract an octave from every note in this track
                     lowered = True
                     for note in track:
-                        if note != None and note.pitch != None:
+                        if note.pitch != None:
                             note.pitch -= 12
                 else:
                     break

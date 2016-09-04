@@ -83,14 +83,9 @@ translator = translator.Translator(midiFile, translatorSettings)
 
 translator.analyze()
 
-# Get all the notes converted to PICO-8-like notes
-tracks = translator.get_pico_tracks()
-
-# DEBUG
-#for t, track in enumerate(tracks):
-#    print('track ' + str(t))
-#    for n, note in enumerate(track):
-#        print(n, note.pitch, note.volume)
+# Get all the notes converted to "tracks" where a "track" is a list of
+# translator.Sfx objects
+tracks = translator.get_sfx_lists()
 
 # Make an empty PICO-8 catridge
 cart = game.Game.make_empty_game()
@@ -100,44 +95,46 @@ lines = [
     'end']
 cart.lua.update_from_lines(lines)
 
-# DEBUG: add notes from track 4 into track 3 if track 3's slot is empty
-#for n, note in enumerate(tracks[3]):
-#    if note == None or note['volume'] == 0:
-#        if n < len(tracks[4]) and tracks[4][n] != None:
-#            print(n, tracks[4][n])
-#            tracks[3][n] = {
-#                'pitch': tracks[4][n]['pitch'],
-#                'volume': tracks[4][n]['volume']
-#            }
-
 # Discard tracks we don't have room for
 if len(tracks) > PICO8_NUM_CHANNELS:
     print("Warning: discarding some tracks we don't have room for")
     tracks = tracks[:PICO8_NUM_CHANNELS]
 
 if args.start_offset > 0:
-    for t, track in enumerate(tracks):
+    # Remove the beginning of each track, based on the "start offset" parameter
+    for t, track in enumerate(sfxLists):
         tracks[t] = track[args.start_offset:]
 
 # Set the note duration of all SFXes
-for sfxIndex in range(PICO8_NUM_SFX):
-    cart.sfx.set_properties(
-            sfxIndex,
-            editor_mode=1,
-            loop_start=0,
-            loop_end=0,
-            note_duration=translator.noteDuration)
+#for sfxIndex in range(PICO8_NUM_SFX):
+#    cart.sfx.set_properties(
+#            sfxIndex,
+#            editor_mode=1,
+#            loop_start=0,
+#            loop_end=0,
+#            note_duration=translator.noteDuration)
 
-trackNoteIndexStart = 0
-sfxIndex = 0
-sfxNoteIndex = 0
+trackSfxIndex = 0
+#sfxNoteIndex = 0
 musicIndex = 0
+sfxIndex = 0
 while sfxIndex < PICO8_NUM_SFX:
     for t, track in enumerate(tracks):
         wroteAnyNotesToSfx = False
 
-        # Add the next 32 notes in this track
-        trackNoteIndex = trackNoteIndexStart
+        # Get the trackSfx, which is the next group of 32 notes in this track
+        trackSfx = track[trackSfxIndex]
+
+        # Set the properites for this SFX
+        cart.sfx.set_properties(
+                sfxIndex,
+                editor_mode=1,
+                loop_start=0,
+                loop_end=0,
+                note_duration=trackSfx.noteDuration)
+
+        # Add the 32 notes in this trackSfx
+        # TODO: continue from here
         for sfxNoteIndex in range(PICO8_NOTES_PER_SFX):
             if trackNoteIndex > len(track) - 1:
                 break
