@@ -121,6 +121,8 @@ while sfxIndex < PICO8_NUM_SFX:
         wroteAnyNotesToSfx = False
 
         # Get the trackSfx, which is the next group of 32 notes in this track
+        if len(track) - 1 < trackSfxIndex:
+            continue
         trackSfx = track[trackSfxIndex]
 
         # Set the properites for this SFX
