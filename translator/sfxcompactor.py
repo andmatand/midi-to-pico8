@@ -21,33 +21,43 @@ class SfxCompactor:
         return longestTrackSfxCount
 
     def run(self):
-        # TODO: figure out optimal highest N to try first
-        n = 8
-        while n > 1:
-            self.optimize_sfx_speeds(n)
-            n -= 1
+        while True:
+            anyCompressionOccurred = False
+
+            # TODO: figure out optimal highest N to try first
+            n = 32
+            while n > 1:
+                anyCompressionOccurred = self.optimize_sfx_speeds(n)
+                n -= 1
+
+            if not anyCompressionOccurred:
+                break
 
         return self.tracks
 
-    def get_track_section(self, track, sfxIndexStart, n):
-        trackSection = TrackSection()
+    def get_track_section(self, trackIndex, sfxIndexStart, n):
+        trackSection = TrackSection(trackIndex)
+        track = self.tracks[trackIndex]
         trackSection.sfxList = track[sfxIndexStart:sfxIndexStart + n]
 
         for s, sfx in enumerate(trackSection.sfxList):
             noteRuns = self.find_note_runs(sfx.notes)
             trackSection.sfxNoteRunLists.append(noteRuns)
 
-        return trackSection
+        if len(trackSection.sfxList) > 0:
+            return trackSection
 
     def get_track_sections(self, sfxIndexStart, n):
         trackSections = []
-        for track in self.tracks:
-            trackSection = self.get_track_section(track, sfxIndexStart, n)
-            trackSections.append(trackSection)
+        for t, track in enumerate(self.tracks):
+            trackSection = self.get_track_section(t, sfxIndexStart, n)
+            if trackSection != None:
+                trackSections.append(trackSection)
 
         return trackSections
 
     def optimize_sfx_speeds(self, n):
+        anyCompressionOccurred = False
         sfxIndexStart = 0
         while sfxIndexStart < self.get_longest_track_sfx_count():
             trackSections = self.get_track_sections(sfxIndexStart, n)
@@ -61,21 +71,16 @@ class SfxCompactor:
                             allRunsDivideEvenly = False
 
             if allRunsDivideEvenly:
-                print('Compacting SFX group by a factor of ' + str(n))
+                anyCompressionOccurred = True
 
                 for t, trackSection in enumerate(trackSections):
-                    # Remove notes from each run
+                    # Remove notes from each run and collect all the notes into
+                    # a contiguous list
+                    allNotes = []
                     for runList in trackSection.sfxNoteRunLists:
                         for r, run in enumerate(runList):
                             newLength = int(len(run) / n)
-                            runList[r] = run[:-newLength]
-
-                    # Collect all the notes from this TrackSection into a
-                    # contiguous list
-                    allNotes = []
-                    for runList in trackSection.sfxNoteRunLists:
-                        for run in runList:
-                            allNotes.extend(run)
+                            allNotes.extend(run[-newLength:])
 
                     # Replace the first SFX's notes with the concatenation of
                     # all the now-shortened notes in the group of SFX
@@ -83,10 +88,11 @@ class SfxCompactor:
                     trackSection.sfxList[0].noteDuration *= n
 
                     # Delete the now-empty SFXes in this track
-                    del self.tracks[t][sfxIndexStart + 1 : sfxIndexStart + n]
-                sfxIndexStart += 1
-            else:
-                sfxIndexStart += n
+                    del self.tracks[trackSection.trackIndex][
+                            sfxIndexStart + 1 : sfxIndexStart + n]
+            sfxIndexStart += 1
+
+        return anyCompressionOccurred
 
     # Find all the note runs (where a "run" is a list of consecutive PICO-8
     # notes that are all representing the same MIDI note) in a given list of
@@ -136,6 +142,7 @@ class SfxCompactor:
 
 
 class TrackSection:
-    def __init__(self):
+    def __init__(self, trackIndex):
+        self.trackIndex = trackIndex
         self.sfxList = []
         self.sfxNoteRunLists = []

@@ -20,6 +20,7 @@ class TranslatorSettings:
         self.legato = False
         self.fixOctaves = True
         self.noteDurationOverride = None
+        self.sfxCompactor = True
 
 class Translator:
     def __init__(self, midiFile, settings: TranslatorSettings=None): 
@@ -264,6 +265,19 @@ class Translator:
 
         return occupiedChannels
 
+    @staticmethod
+    def trim_empty_notes_from_end_of_sfx_list(sfxes):
+        if len(sfxes) > 0:
+            # Trim empty notes off the end of the last Sfx
+            lastNoteIndex = None
+            for i in range(len(sfxes[-1].notes) - 1, -1, -1):
+                if sfxes[-1].notes[i].volume > 0:
+                    lastNoteIndex = i
+                    break
+            if lastNoteIndex != None:
+                sfxes[-1].notes = sfxes[-1].notes[:lastNoteIndex + 1]
+
+
     def split_into_sfxes(self, notes):
         sfxes = []
 
@@ -307,10 +321,13 @@ class Translator:
         sfxLists = []
         for t, noteList in enumerate(picoNoteLists):
             sfxes = self.split_into_sfxes(noteList)
+            Translator.trim_empty_notes_from_end_of_sfx_list(sfxes)
             sfxLists.append(sfxes)
 
-        sfxCompactor = SfxCompactor(sfxLists)
-        sfxLists = sfxCompactor.run()
+        if self.settings.sfxCompactor:
+            print('Compacting long notes...')
+            sfxCompactor = SfxCompactor(sfxLists)
+            sfxLists = sfxCompactor.run()
 
         return sfxLists
 

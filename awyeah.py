@@ -58,9 +58,13 @@ argParser.add_argument(
         type=int)
 argParser.add_argument(
         '--start-offset',
-        help="Offset the starting note number (in PICO-8 notes)",
+        help="Change the start point in the MIDI file (in # of PICO-8 SFX)",
         type=int,
         default=0)
+argParser.add_argument(
+        '--no-compact',
+        help="Disable compacting long note runs to save space",
+        action='store_true')
 
 args = argParser.parse_args()
 
@@ -72,6 +76,7 @@ translatorSettings.staccato = args.staccato
 translatorSettings.legato = args.legato
 translatorSettings.fixOctaves = not args.no_fix_octaves
 translatorSettings.noteDurationOverride = args.note_duration
+translatorSettings.sfxCompactor = not args.no_compact
 
 # Open the MIDI file
 midiFile = midi.MidiFile()
@@ -100,8 +105,9 @@ if len(tracks) > PICO8_NUM_CHANNELS:
     tracks = tracks[:PICO8_NUM_CHANNELS]
 
 if args.start_offset > 0:
-    # Remove the beginning of each track, based on the "start offset" parameter
-    for t, track in enumerate(sfxLists):
+    # Remove SFXes from the beginning of each track, based on the "start
+    # offset" parameter
+    for t, track in enumerate(tracks):
         tracks[t] = track[args.start_offset:]
 
 # Set the note duration of all SFXes
@@ -117,6 +123,7 @@ trackSfxIndex = 0
 musicIndex = 0
 sfxIndex = 0
 while sfxIndex < PICO8_NUM_SFX:
+    wroteAnythingToMusic = False
     for t, track in enumerate(tracks):
         wroteAnyNotesToSfx = False
 
@@ -153,6 +160,7 @@ while sfxIndex < PICO8_NUM_SFX:
         if wroteAnyNotesToSfx:
             # Add the SFX to a music pattern
             cart.music.set_channel(musicIndex, t, sfxIndex)
+            wroteAnythingToMusic = True
 
             # Move to the next SFX
             sfxIndex += 1
@@ -161,7 +169,8 @@ while sfxIndex < PICO8_NUM_SFX:
                 break
 
     trackSfxIndex += 1
-    musicIndex += 1
+    if wroteAnythingToMusic:
+        musicIndex += 1
     if musicIndex > PICO8_NUM_MUSIC - 1:
         print('reached max music patterns')
         break
