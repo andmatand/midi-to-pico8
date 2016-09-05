@@ -9,7 +9,6 @@ from pico8.game import game
 
 # Constants
 PICO8_NUM_CHANNELS = 4
-PICO8_NOTES_PER_SFX = 32
 PICO8_NUM_SFX = 64
 PICO8_NUM_MUSIC = 64
 PICO8_MAX_PITCH = 63
@@ -115,7 +114,6 @@ if args.start_offset > 0:
 #            note_duration=translator.noteDuration)
 
 trackSfxIndex = 0
-#sfxNoteIndex = 0
 musicIndex = 0
 sfxIndex = 0
 while sfxIndex < PICO8_NUM_SFX:
@@ -135,11 +133,8 @@ while sfxIndex < PICO8_NUM_SFX:
 
         # Add the 32 notes in this trackSfx
         # TODO: continue from here
-        for sfxNoteIndex in range(PICO8_NOTES_PER_SFX):
-            if trackNoteIndex > len(track) - 1:
-                break
-            note = track[trackNoteIndex]
-            if note != None and note.volume > 0:
+        for n, note in enumerate(trackSfx.notes):
+            if note.volume > 0:
                 wroteAnyNotesToSfx = True
                 noteIsInRange = (note.pitch >= 0 and
                                  note.pitch <= PICO8_MAX_PITCH)
@@ -147,12 +142,11 @@ while sfxIndex < PICO8_NUM_SFX:
                     # Add this note to the current PICO-8 SFX
                     cart.sfx.set_note(
                             sfxIndex,
-                            sfxNoteIndex,
+                            n,
                             pitch = note.pitch,
                             volume = note.volume,
                             effect = note.effect,
                             waveform = pico8Config['waveforms'][t])
-            trackNoteIndex += 1 
 
         if wroteAnyNotesToSfx:
             # Add the SFX to a music pattern
@@ -164,18 +158,16 @@ while sfxIndex < PICO8_NUM_SFX:
             if sfxIndex > PICO8_NUM_SFX - 1:
                 break
 
-    # Increment trackNoteIndexStart
-    trackNoteIndexStart += PICO8_NOTES_PER_SFX
-
+    trackSfxIndex += 1
     musicIndex += 1
     if musicIndex > PICO8_NUM_MUSIC - 1:
         print('reached max music patterns')
         break
 
-    # Check if the trackNoteIndexStart is past the end of all tracks
+    # Check if the trackSfxIndex is past the end of all tracks
     allTracksAreEnded = True
     for track in tracks:
-        if trackNoteIndexStart < len(track):
+        if trackSfxIndex < len(track):
             allTracksAreEnded = False
             break
     if allTracksAreEnded:

@@ -2,44 +2,15 @@ import copy
 import math
 import statistics
 
-MIDI_DEFAULT_BPM = 120
-MIDI_MAX_CHANNELS = 16
-
-MIDI_TO_PICO8_PITCH_SUBTRAHEND = 36
-
-PICO8_MAX_PITCH = 63
-PICO8_MIN_NOTE_DURATION = 1
-PICO8_NOTES_PER_SFX = 32
+from .note import Note
+from .sfx import Sfx
+from .sfxcompactor import SfxCompactor
+from . import PICO8_MIN_NOTE_DURATION
+from . import PICO8_MAX_PITCH
+from . import PICO8_NOTES_PER_SFX
 
 # According to https://eev.ee/blog/2016/05/30/extracting-music-from-the-pico-8/
 PICO8_MS_PER_TICK = (183 / 22050) * 1000
-
-class Note:
-    def __init__(self, event=None):
-        # MIDI properties
-        self.midiDuration = 0
-        self.midiPitch = None
-        self.midiChannel = None
-        self.midiVelocity = None
-
-        # PICO-8 tracker properties
-        self.pitch = None
-        self.volume = 0
-        self.waveform = None
-        self.effect = None
-        self.length = 0
-
-        if event != None:
-            self.midiPitch = event.pitch
-            self.midiChannel = event.channel
-            self.midiVelocity = event.velocity
-            self.pitch = event.pitch - MIDI_TO_PICO8_PITCH_SUBTRAHEND
-            self.volume = math.floor((event.velocity / 127) * 7)
-
-class Sfx:
-    def __init__(self, notes):
-        self.notes = notes
-        self.noteDuration = None
 
 class TranslatorSettings:
     def __init__(self):
@@ -293,93 +264,6 @@ class Translator:
 
         return occupiedChannels
 
-    # Find all the note runs (where a "run" is a list of consecutive PICO-8
-    # notes that are all representing the same MIDI note) in a given list of
-    # notes
-    def find_note_runs(self, notes):
-        runs = []
-
-        run = []
-        for note in notes:
-            currentRunShouldEnd = False
-
-            noteBelongsToCurrentRun = False
-            prevNote = notes[-1]
-            if prevNote != None:
-                if (note.pitch == prevNote.pitch and
-                    note.volume == prevNote.volume and
-                    note.waveform == prevNote.waveform):
-                    noteBelongsToCurrentRun = True
-                elif note.volume == 0 and prevNote.volume == 0:
-                    noteBelongsToCurrentRun = True
-
-            # If this note should be added to the current run
-            if noteBelongsToCurrentRun or len(run) == 0:
-                run.append(note)
-
-                # If this note has an effect, it must be the last in the run
-                if note.effect != None:
-                    currentRunShouldEnd = True
-            else:
-                currentRunShouldEnd = True
-
-            if currentRunShouldEnd:
-                # End the current run
-                runs.append(run)
-
-                # Add the current note to a new run
-                run = [note]
-
-        return runs
-
-    # Look for N consecutive SFXes that can be combined into one with each
-    # note-run's length reduced (i.e. divided by N) and the note duration
-    # increased (i.e. multiplied by N) to compensate
-    def optimize_sfx_speeds(self, sfxes):
-        n = 2 # TODO start with higher numbers
-
-        for i in range(0, len(sfxes), n):
-            sfxGroup = sfxes[i:i + n]
-
-            sfxNoteRunLists = {}
-            for s, sfx in enumerate(sfxGroup):
-                sfxNoteRunLists[s] = self.find_note_runs(sfx.notes)
-
-            # Check if all note runs have lengths divisible by N
-            allRunsDivideEvenly = True
-            for runList in sfxNoteRunLists.values():
-                for run in runList:
-                    if len(run) % n != 0:
-                        allRunsDivideEvenly = False
-
-            if allRunsDivideEvenly:
-                print('Compacting SFX group by a factor of ' + str(n))
-
-                # Remove notes from each run
-                for runList in sfxNoteRunLists.values():
-                    for run in runList:
-                        newLength = len(run) / n
-                        run = run[:-newLength]
-
-                # Collect all the notes into a contiguous
-                allNotes = []
-                for runList in sfxNoteRunLists.values():
-                    for run in runList:
-                        allNotes.extend(run)
-
-                # Replace the first SFX's notes with the concatenation of all
-                # the now-shortened notes in the group of SFX
-                sfxGroup[0].notes = allNotes
-                sfxGroup[0].noteDuration *= n
-
-                # DEBUG
-                #for j in range(i + 1, i + n):
-                #    sfxGroup[j].notes = []
-
-                # TODO: Move over all the SFXes to close the gap
-                #for j in range(i + 1, i + n):
-                #    del sfxGroup[j]
-
     def split_into_sfxes(self, notes):
         sfxes = []
 
@@ -402,7 +286,7 @@ class Translator:
                 picoNotes = self.get_pico_notes(midiTrack, channel)
 
                 hasAudibleNotes = False
-                for note in picoTrack:
+                for note in picoNotes:
                     if note.volume > 0:
                         hasAudibleNotes = True
                         break
@@ -414,7 +298,7 @@ class Translator:
         if self.settings.fixOctaves:
             picoNoteLists = self.adjust_octaves(picoNoteLists)
 
-        print('got a total of {0} translated tracks'.format(len(picoTracks)))
+        print('got a total of {0} translated tracks'.format(len(picoNoteLists)))
 
         # OPTIMIZATION TODO: Try to combine tracks if they have no overlapping
         # notes
@@ -423,8 +307,10 @@ class Translator:
         sfxLists = []
         for t, noteList in enumerate(picoNoteLists):
             sfxes = self.split_into_sfxes(noteList)
-            self.optimize_sfx_speeds(sfxes)
             sfxLists.append(sfxes)
+
+        sfxCompactor = SfxCompactor(sfxLists)
+        sfxLists = sfxCompactor.run()
 
         return sfxLists
 
