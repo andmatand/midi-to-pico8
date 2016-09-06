@@ -325,7 +325,7 @@ class Translator:
             sfxLists.append(sfxes)
 
         if self.settings.sfxCompactor:
-            print('Compacting long notes...')
+            print('Trying to compact long notes...')
             sfxCompactor = SfxCompactor(sfxLists)
             sfxLists = sfxCompactor.run()
 

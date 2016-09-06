@@ -72,6 +72,7 @@ class SfxCompactor:
 
             if allRunsDivideEvenly:
                 anyCompressionOccurred = True
+                print('compacting some long notes by a factor of ' + str(n))
 
                 for t, trackSection in enumerate(trackSections):
                     # Remove notes from each run and collect all the notes into
