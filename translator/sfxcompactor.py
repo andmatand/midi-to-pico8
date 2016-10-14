@@ -1,11 +1,13 @@
 from .note import Note
 from .sfx import Sfx
 
+from . import PICO8_NUM_SFX
+
 # SfxCompactor does the following:
 # Look for spots across all tracks at the same time with N consecutive SFXes
-# that can be combined into one with each note-run's length reduced (i.e.
-# divided by N) and the note duration increased (i.e. multiplied by N) to
-# compensate
+# that can be combined into one with each note-run's (where a "note-run" is the
+# same note repeated several times) length reduced (i.e.  divided by N) and the
+# note duration increased (i.e. multiplied by N) to compensate
 class SfxCompactor:
     # "tracks" is a list of SFX lists
     def __init__(self, tracks):
@@ -18,7 +20,7 @@ class SfxCompactor:
             if length > longestTrackSfxCount:
                 longestTrackSfxCount = length
 
-        return longestTrackSfxCount
+        return min(longestTrackSfxCount, PICO8_NUM_SFX)
 
     def run(self):
         while True:
@@ -58,6 +60,7 @@ class SfxCompactor:
 
     def optimize_sfx_speeds(self, n):
         anyCompressionOccurred = False
+        savedSfxCount = 0
         sfxIndexStart = 0
         while sfxIndexStart < self.get_longest_track_sfx_count():
             trackSections = self.get_track_sections(sfxIndexStart, n)
@@ -72,7 +75,7 @@ class SfxCompactor:
 
             if allRunsDivideEvenly:
                 anyCompressionOccurred = True
-                print('compacting some long notes by a factor of ' + str(n))
+                savedSfxCount += (n - 1)
 
                 for t, trackSection in enumerate(trackSections):
                     # Remove notes from each run and collect all the notes into
@@ -92,6 +95,9 @@ class SfxCompactor:
                     del self.tracks[trackSection.trackIndex][
                             sfxIndexStart + 1 : sfxIndexStart + n]
             sfxIndexStart += 1
+
+        if savedSfxCount > 0:
+            print('saved {0} SFX slots (note group length: {1})'.format(savedSfxCount, n))
 
         return anyCompressionOccurred
 

@@ -5,6 +5,7 @@ import statistics
 from .note import Note
 from .sfx import Sfx
 from .sfxcompactor import SfxCompactor
+
 from . import PICO8_MIN_NOTE_DURATION
 from . import PICO8_MAX_PITCH
 from . import PICO8_NOTES_PER_SFX
@@ -325,7 +326,7 @@ class Translator:
             sfxLists.append(sfxes)
 
         if self.settings.sfxCompactor:
-            print('Trying to compact long notes...')
+            print('trying to save SFX slots by compacting repeated notes...')
             sfxCompactor = SfxCompactor(sfxLists)
             sfxLists = sfxCompactor.run()
 
