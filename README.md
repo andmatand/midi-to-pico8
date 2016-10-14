@@ -7,7 +7,7 @@
 ## How To Use
     usage: awyeah.py [-h] [--legato] [--staccato] [--no-fix-octaves]
                      [--no-quantize] [-t MIDI_BASE_TICKS] [-d NOTE_DURATION]
-                     [--start-offset START_OFFSET]
+                     [--start-offset START_OFFSET] [--no-compact]
                      midiPath [cartPath]
     
     positional arguments:
@@ -29,7 +29,10 @@
                             Override PICO-8 note duration setting (normally auto-
                             detected from MIDI tempo)
       --start-offset START_OFFSET
-                            Offset the starting note number (in PICO-8 notes)
+                            Change the start point in the MIDI file (in # of
+                            PICO-8 SFX)
+      --no-compact          Don't try to compact groups of repeated notes (this
+                            will save time but possibly use more SFX slots)
 
 ## Please Note
 MIDI format stores music in a conceptually different way than PICO-8's tracker
