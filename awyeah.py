@@ -63,7 +63,7 @@ argParser.add_argument(
         default=0)
 argParser.add_argument(
         '--no-compact',
-        help="Disable compacting long note runs to save space",
+        help="Don't try to compact groups of repeated notes (this will save time but possibly use more SFX slots)",
         action='store_true')
 
 args = argParser.parse_args()

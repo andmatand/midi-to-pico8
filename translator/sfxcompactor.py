@@ -20,7 +20,8 @@ class SfxCompactor:
             if length > longestTrackSfxCount:
                 longestTrackSfxCount = length
 
-        return min(longestTrackSfxCount, PICO8_NUM_SFX)
+        # TODO don't check past what will fit in PICO-8; this needs to take start_offset into account
+        return longestTrackSfxCount
 
     def run(self):
         while True:
