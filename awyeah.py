@@ -110,14 +110,44 @@ if args.start_offset > 0:
     for t, track in enumerate(tracks):
         tracks[t] = track[args.start_offset:]
 
-# Set the note duration of all SFXes
-#for sfxIndex in range(PICO8_NUM_SFX):
-#    cart.sfx.set_properties(
-#            sfxIndex,
-#            editor_mode=1,
-#            loop_start=0,
-#            loop_end=0,
-#            note_duration=translator.noteDuration)
+
+# SfxDuplicateDetector creates a map of each trackSfx (which is a group of 32
+# notes in a track) and the PICO-8 SFX index to which it was written, so that
+# it can check if a given trackSfx was already written to the PICO-8 catridge
+# and instead return the existing SFX index so the music pattern can use that.
+class SfxDuplicateDetector:
+    def __init__(self):
+        self.map = {}
+        map = {}
+
+    def record_tracksfx_index(self, sfxIndex, trackSfx):
+        self.map[sfxIndex] = trackSfx
+
+    @staticmethod
+    def sfx_match(sfx1, sfx2):
+        if len(sfx1.notes) != len(sfx2.notes) or sfx1.noteDuration != sfx2.noteDuration:
+            return False
+
+        for i in range(len(sfx1.notes)):
+            note1 = sfx1.notes[i]
+            note2 = sfx2.notes[i]
+
+            if (note1.pitch != note2.pitch or
+                note1.volume != note2.volume or
+                note1.waveform != note2.waveform or
+                note1.effect != note2.effect or
+                note1.length != note2.length):
+                return False
+
+        return True
+
+    def find_duplicate_sfx_index(self, sfx):
+        for sfxIndex, existingSfx in self.map.items():
+            if SfxDuplicateDetector.sfx_match(existingSfx, sfx):
+                return sfxIndex
+
+sfxDuplicateDetector = SfxDuplicateDetector()
+duplicateSfxSavingsCount = 0
 
 trackSfxIndex = 0
 musicIndex = 0
@@ -132,30 +162,41 @@ while sfxIndex < PICO8_NUM_SFX:
             continue
         trackSfx = track[trackSfxIndex]
 
-        # Set the properites for this SFX
-        cart.sfx.set_properties(
-                sfxIndex,
-                editor_mode=1,
-                loop_start=0,
-                loop_end=0,
-                note_duration=trackSfx.noteDuration)
+        # Check if this SFX is a duplicate of any that have already been written
+        duplicateSfxIndex = sfxDuplicateDetector.find_duplicate_sfx_index(trackSfx)
+        if duplicateSfxIndex != None:
+            # Add the SFX to a music pattern
+            cart.music.set_channel(musicIndex, t, duplicateSfxIndex)
+            wroteAnythingToMusic = True
+            duplicateSfxSavingsCount += 1
+        elif sfxIndex < PICO8_NUM_SFX:
+            # Store the PICO-8 track number that this section of the track went in
+            sfxDuplicateDetector.record_tracksfx_index(sfxIndex, trackSfx)
 
-        # Add the 32 notes in this trackSfx
-        # TODO: continue from here
-        for n, note in enumerate(trackSfx.notes):
-            if note.volume > 0:
-                wroteAnyNotesToSfx = True
-                noteIsInRange = (note.pitch >= 0 and
-                                 note.pitch <= PICO8_MAX_PITCH)
-                if noteIsInRange:
-                    # Add this note to the current PICO-8 SFX
-                    cart.sfx.set_note(
-                            sfxIndex,
-                            n,
-                            pitch = note.pitch,
-                            volume = note.volume,
-                            effect = note.effect,
-                            waveform = pico8Config['waveforms'][t])
+            # Set the properites for this SFX
+            cart.sfx.set_properties(
+                    sfxIndex,
+                    editor_mode=1,
+                    loop_start=0,
+                    loop_end=0,
+                    note_duration=trackSfx.noteDuration)
+
+            # Add the 32 notes in this trackSfx
+            # TODO: continue from here
+            for n, note in enumerate(trackSfx.notes):
+                if note.volume > 0:
+                    wroteAnyNotesToSfx = True
+                    noteIsInRange = (note.pitch >= 0 and
+                                     note.pitch <= PICO8_MAX_PITCH)
+                    if noteIsInRange:
+                        # Add this note to the current PICO-8 SFX
+                        cart.sfx.set_note(
+                                sfxIndex,
+                                n,
+                                pitch = note.pitch,
+                                volume = note.volume,
+                                effect = note.effect,
+                                waveform = pico8Config['waveforms'][t])
 
         if wroteAnyNotesToSfx:
             # Add the SFX to a music pattern
@@ -164,9 +205,6 @@ while sfxIndex < PICO8_NUM_SFX:
 
             # Move to the next SFX
             sfxIndex += 1
-
-            if sfxIndex > PICO8_NUM_SFX - 1:
-                break
 
     trackSfxIndex += 1
     if wroteAnythingToMusic:
@@ -183,6 +221,9 @@ while sfxIndex < PICO8_NUM_SFX:
             break
     if allTracksAreEnded:
         break
+
+if (duplicateSfxSavingsCount > 0):
+    print('optimized {0} occurences of duplicate SFX'.format(duplicateSfxSavingsCount))
 
 # Write the cart
 with open(args.cartPath, 'w', encoding='utf-8') as fh:
