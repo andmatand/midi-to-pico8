@@ -44,13 +44,14 @@
                             Specify the number of octaves to shift each PICO-8
                             channel
       --volume-shift VOLUME_SHIFT VOLUME_SHIFT VOLUME_SHIFT VOLUME_SHIFT
-                            Specify a number to add to the volume for all notes in
-                            each PICO-8 channel (the volume for each note will be
+                            Specify a number to add to the volume of all notes in
+                            each PICO-8 channel (volume for each note will be
                             limited to >= 1)
       --mute MUTE MUTE MUTE MUTE
                             Specify whether to "mute" each PICO-8 channel (1 =
-                            mute, 0 = play). Notes for a muted channel will
-                            excluded from the cartridge entirely
+                            mute, 0 = do not mute). Notes for a muted channel will
+                            be excluded from the cartridge entirely
+
 
 ## Please Note
 MIDI format stores music in a conceptually different way than PICO-8's tracker

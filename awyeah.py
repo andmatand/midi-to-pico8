@@ -85,7 +85,7 @@ argParser.add_argument(
         default=songConfig['octaveShift'])
 argParser.add_argument(
         '--volume-shift',
-        help="Specify a number to add to the volume for all notes in each " +
+        help="Specify a number to add to the volume of all notes in each " +
               "PICO-8 channel (volume for each note will be limited to >= 1)",
         nargs=4,
         type=int,
