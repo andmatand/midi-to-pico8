@@ -8,6 +8,10 @@
     usage: awyeah.py [-h] [--legato] [--staccato] [--no-fix-octaves]
                      [--no-quantize] [-t MIDI_BASE_TICKS] [-d NOTE_DURATION]
                      [--start-offset START_OFFSET] [--no-compact]
+                     [--waveform WAVEFORM WAVEFORM WAVEFORM WAVEFORM]
+                     [--octave-shift OCTAVE_SHIFT OCTAVE_SHIFT OCTAVE_SHIFT OCTAVE_SHIFT]
+                     [--volume-shift VOLUME_SHIFT VOLUME_SHIFT VOLUME_SHIFT VOLUME_SHIFT]
+                     [--mute MUTE MUTE MUTE MUTE]
                      midiPath [cartPath]
     
     positional arguments:
@@ -31,8 +35,22 @@
       --start-offset START_OFFSET
                             Change the start point in the MIDI file (in # of
                             PICO-8 SFX)
-      --no-compact          Don't try to compact groups of repeated notes (this
-                            will save time but possibly use more SFX slots)
+      --no-compact          Don't try to compact groups of repeated notes into
+                            fewer notes played for longer
+      --waveform WAVEFORM WAVEFORM WAVEFORM WAVEFORM
+                            Specify which PICO-8 waveform (instrument) number to
+                            use for each channel
+      --octave-shift OCTAVE_SHIFT OCTAVE_SHIFT OCTAVE_SHIFT OCTAVE_SHIFT
+                            Specify the number of octaves to shift each PICO-8
+                            channel
+      --volume-shift VOLUME_SHIFT VOLUME_SHIFT VOLUME_SHIFT VOLUME_SHIFT
+                            Specify a number to add to the volume for all notes in
+                            each PICO-8 channel (the volume for each note will be
+                            limited to >= 1)
+      --mute MUTE MUTE MUTE MUTE
+                            Specify whether to "mute" each PICO-8 channel (1 =
+                            mute, 0 = play). Notes for a muted channel will
+                            excluded from the cartridge entirely
 
 ## Please Note
 MIDI format stores music in a conceptually different way than PICO-8's tracker
@@ -76,8 +94,6 @@ be considered to be in an "work in progress" state.
 ## To Do List
 These are things that are totally unimplemented now but that I probably will
 try to implement in the future:
-* The ability to manually specify which waveform to use for which track, via a
-  command line argument
 * An automatic best guess MIDI-instrument-to-PICO-8-waveform mapping table
 * Automatic or manual combination of multiple tracks into one (in places where
   both are not playing notes at the same time)

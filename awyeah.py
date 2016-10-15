@@ -13,10 +13,12 @@ PICO8_NUM_SFX = 64
 PICO8_NUM_MUSIC = 64
 PICO8_MAX_PITCH = 63
 
-# Song-Specific Config
-pico8Config = {
-    'noteDuration': 14,
-    'waveforms': [1, 2, 3, 1],
+# Defaults for Song-Specific Config
+songConfig = {
+    'mute': [0, 0, 0, 0],
+    'octaveShift': [0, 0, 0, 0],
+    'volumeShift': [0, 0, 0, 0],
+    'waveform': [1, 5, 3, 6], # TODO choose defaults based on MIDI instruments
 }
 
 # Parse command-line arguments
@@ -49,12 +51,14 @@ argParser.add_argument(
 argParser.add_argument(
         '-t',
         '--midi-base-ticks',
-        help="Override MIDI ticks per PICO-8 note setting (normally auto-detected)",
+        help="Override MIDI ticks per PICO-8 note setting (normally " +
+             "auto-detected)",
         type=int)
 argParser.add_argument(
         '-d',
         '--note-duration',
-        help="Override PICO-8 note duration setting (normally auto-detected from MIDI tempo)",
+        help="Override PICO-8 note duration setting (normally auto-detected " +
+             "from MIDI tempo)",
         type=int)
 argParser.add_argument(
         '--start-offset',
@@ -63,8 +67,37 @@ argParser.add_argument(
         default=0)
 argParser.add_argument(
         '--no-compact',
-        help="Don't try to compact groups of repeated notes (this will save time but possibly use more SFX slots)",
-        action='store_true')
+        help="Don't try to compact groups of repeated notes into fewer notes " +
+             "played for longer",
+         action='store_true')
+argParser.add_argument(
+        '--waveform',
+        help="Specify which PICO-8 waveform (instrument) number to use for " +
+             "each channel",
+        nargs=4,
+        type=int,
+        default=songConfig['waveform'])
+argParser.add_argument(
+        '--octave-shift',
+        help="Specify the number of octaves to shift each PICO-8 channel",
+        nargs=4,
+        type=int,
+        default=songConfig['octaveShift'])
+argParser.add_argument(
+        '--volume-shift',
+        help="Specify a number to add to the volume for all notes in each " +
+              "PICO-8 channel (volume for each note will be limited to >= 1)",
+        nargs=4,
+        type=int,
+        default=songConfig['volumeShift'])
+argParser.add_argument(
+        '--mute',
+        help='Specify whether to "mute" each PICO-8 channel ' +
+             '(1 = mute, 0 = do not mute). Notes for a muted channel will be ' +
+             'excluded from the cartridge entirely',
+        nargs=4,
+        type=int,
+        default=songConfig['mute'])
 
 args = argParser.parse_args()
 
@@ -77,6 +110,12 @@ translatorSettings.legato = args.legato
 translatorSettings.fixOctaves = not args.no_fix_octaves
 translatorSettings.noteDurationOverride = args.note_duration
 translatorSettings.sfxCompactor = not args.no_compact
+
+# Set song-specific tracker-related settings from command-line arguments
+songConfig['waveform'] = args.waveform
+songConfig['octaveShift'] = args.octave_shift
+songConfig['volumeShift'] = args.volume_shift
+songConfig['mute'] = args.mute
 
 # Open the MIDI file
 midiFile = midi.MidiFile()
@@ -162,6 +201,10 @@ while sfxIndex < PICO8_NUM_SFX:
             continue
         trackSfx = track[trackSfxIndex]
 
+        # If there is a "mute" specified for this track
+        if songConfig['mute'][t] == 1:
+            continue
+
         # Check if this SFX is a duplicate of any that have already been written
         duplicateSfxIndex = sfxDuplicateDetector.find_duplicate_sfx_index(trackSfx)
         if duplicateSfxIndex != None:
@@ -184,18 +227,32 @@ while sfxIndex < PICO8_NUM_SFX:
             # Add the 32 notes in this trackSfx
             for n, note in enumerate(trackSfx.notes):
                 if note.volume > 0:
+                    pitch = note.pitch
+                    volume = note.volume
+
+                    # If there is a manual octave shift specified for this track
+                    octaveShift = songConfig['octaveShift'][t]
+                    if octaveShift != 0:
+                        pitch = note.pitch + (12 * octaveShift)
+
+                    # If there is a manual volume shift specified for this track
+                    volumeShift = songConfig['volumeShift'][t]
+                    if volumeShift != 0:
+                        volume = note.volume + volumeShift
+                        if volume < 1:
+                            volume = 1
+
                     wroteAnyNotesToSfx = True
-                    noteIsInRange = (note.pitch >= 0 and
-                                     note.pitch <= PICO8_MAX_PITCH)
+                    noteIsInRange = (pitch >= 0 and pitch <= PICO8_MAX_PITCH)
                     if noteIsInRange:
                         # Add this note to the current PICO-8 SFX
                         cart.sfx.set_note(
                                 sfxIndex,
                                 n,
-                                pitch = note.pitch,
-                                volume = note.volume,
+                                pitch = pitch,
+                                volume = volume,
                                 effect = note.effect,
-                                waveform = pico8Config['waveforms'][t])
+                                waveform = songConfig['waveform'][t])
 
         if wroteAnyNotesToSfx:
             # Add the SFX to a music pattern
