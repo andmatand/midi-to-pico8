@@ -182,7 +182,6 @@ while sfxIndex < PICO8_NUM_SFX:
                     note_duration=trackSfx.noteDuration)
 
             # Add the 32 notes in this trackSfx
-            # TODO: continue from here
             for n, note in enumerate(trackSfx.notes):
                 if note.volume > 0:
                     wroteAnyNotesToSfx = True
