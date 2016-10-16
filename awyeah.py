@@ -18,7 +18,7 @@ songConfig = {
     'mute': [0, 0, 0, 0],
     'octaveShift': [0, 0, 0, 0],
     'volumeShift': [0, 0, 0, 0],
-    'waveform': [1, 5, 3, 6], # TODO choose defaults based on MIDI instruments
+    'waveform': [1, 2, 3, 4], # TODO choose defaults based on MIDI instruments
 }
 
 # Parse command-line arguments
