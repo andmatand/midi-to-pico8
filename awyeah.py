@@ -139,9 +139,9 @@ lines = [
 cart.lua.update_from_lines(lines)
 
 # Discard tracks we don't have room for
-if len(tracks) > PICO8_NUM_CHANNELS:
-    print("Warning: discarding some tracks we don't have room for")
-    tracks = tracks[:PICO8_NUM_CHANNELS]
+#if len(tracks) > PICO8_NUM_CHANNELS:
+#    print("Warning: discarding some tracks we don't have room for")
+#    tracks = tracks[:PICO8_NUM_CHANNELS]
 
 if args.start_offset > 0:
     # Remove SFXes from the beginning of each track, based on the "start
@@ -193,7 +193,11 @@ musicIndex = 0
 sfxIndex = 0
 while sfxIndex < PICO8_NUM_SFX:
     wroteAnythingToMusic = False
+    channelIndex = 0
+    print('trackSfxIndex: ' + str(trackSfxIndex))
     for t, track in enumerate(tracks):
+        print('  track number: ' + str(t))
+        print('  channelIndex: ' + str(channelIndex))
         wroteAnyNotesToSfx = False
 
         # Get the trackSfx, which is the next group of 32 notes in this track
@@ -202,20 +206,18 @@ while sfxIndex < PICO8_NUM_SFX:
         trackSfx = track[trackSfxIndex]
 
         # If there is a "mute" specified for this track
-        if songConfig['mute'][t] == 1:
+        if songConfig['mute'][channelIndex] == 1:
             continue
 
         # Check if this SFX is a duplicate of any that have already been written
         duplicateSfxIndex = sfxDuplicateDetector.find_duplicate_sfx_index(trackSfx)
         if duplicateSfxIndex != None:
+            print('    using duplicate')
             # Add the SFX to a music pattern
-            cart.music.set_channel(musicIndex, t, duplicateSfxIndex)
+            cart.music.set_channel(musicIndex, channelIndex, duplicateSfxIndex)
             wroteAnythingToMusic = True
             duplicateSfxSavingsCount += 1
         elif sfxIndex < PICO8_NUM_SFX:
-            # Store the PICO-8 track number that this section of the track went in
-            sfxDuplicateDetector.record_tracksfx_index(sfxIndex, trackSfx)
-
             # Set the properites for this SFX
             cart.sfx.set_properties(
                     sfxIndex,
@@ -231,12 +233,12 @@ while sfxIndex < PICO8_NUM_SFX:
                     volume = note.volume
 
                     # If there is a manual octave shift specified for this track
-                    octaveShift = songConfig['octaveShift'][t]
+                    octaveShift = songConfig['octaveShift'][channelIndex]
                     if octaveShift != 0:
                         pitch = note.pitch + (12 * octaveShift)
 
                     # If there is a manual volume shift specified for this track
-                    volumeShift = songConfig['volumeShift'][t]
+                    volumeShift = songConfig['volumeShift'][channelIndex]
                     if volumeShift != 0:
                         volume = note.volume + volumeShift
                         if volume < 1:
@@ -252,15 +254,24 @@ while sfxIndex < PICO8_NUM_SFX:
                                 pitch = pitch,
                                 volume = volume,
                                 effect = note.effect,
-                                waveform = songConfig['waveform'][t])
+                                waveform = songConfig['waveform'][channelIndex])
 
         if wroteAnyNotesToSfx:
+            # Store the PICO-8 track number that this section of the track went in
+            sfxDuplicateDetector.record_tracksfx_index(sfxIndex, trackSfx)
+
+            print('    wrote notes')
             # Add the SFX to a music pattern
-            cart.music.set_channel(musicIndex, t, sfxIndex)
+            cart.music.set_channel(musicIndex, channelIndex, sfxIndex)
             wroteAnythingToMusic = True
 
             # Move to the next SFX
             sfxIndex += 1
+
+            # Move to the next PICO-8 music channel
+            channelIndex += 1
+            if channelIndex > PICO8_NUM_CHANNELS - 1:
+                break
 
     trackSfxIndex += 1
     if wroteAnythingToMusic:
