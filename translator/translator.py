@@ -51,6 +51,10 @@ class Translator:
             if event.type == 'DeltaTime':
                 deltaTime += event.time
             if event.type == 'NOTE_ON' or event.type == 'NOTE_OFF':
+                # Skip all drums for now
+                if event.channel == 10:
+                    continue
+
                 if activeNote != None:
                     activeNote.midiDuration = deltaTime
                     activeNote = None
