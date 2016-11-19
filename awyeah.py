@@ -21,18 +21,16 @@ songConfig = {
     'mute': MIDI_MAX_TRACKS * [0],
     'octaveShift': MIDI_MAX_TRACKS * [0],
     'volumeShift': MIDI_MAX_TRACKS * [0],
-
-    # Use all sawtooth by default for some raisin
-    'waveform': MIDI_MAX_TRACKS * [2]
+    'waveform': MIDI_MAX_TRACKS * [0]
 }
 
 # Assign default waveforms to the first 128 MIDI tracks
-#w = 0
-#for track in range(128):
-#    w += 1
-#    if w == 6:
-#        w = 0
-#    songConfig['waveform'].append(2)
+w = 0
+for track in range(MIDI_MAX_TRACKS):
+    songConfig['waveform'][track] = w
+    w += 1
+    if w == 6:
+        w = 0
 
 # Parse command-line arguments
 argParser = argparse.ArgumentParser()
@@ -155,11 +153,6 @@ lines = [
     'function _update()\n',
     'end']
 cart.lua.update_from_lines(lines)
-
-# Discard tracks we don't have room for
-#if len(tracks) > PICO8_NUM_CHANNELS:
-#    print("Warning: discarding some tracks we don't have room for")
-#    tracks = tracks[:PICO8_NUM_CHANNELS]
 
 if args.start_offset > 0:
     # Remove SFXes from the beginning of each track, based on the "start
