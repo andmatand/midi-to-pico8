@@ -8,10 +8,10 @@
     usage: awyeah.py [-h] [--legato] [--staccato] [--no-fix-octaves]
                      [--no-quantize] [-t MIDI_BASE_TICKS] [-d NOTE_DURATION]
                      [--start-offset START_OFFSET] [--no-compact]
-                     [--waveform WAVEFORM WAVEFORM WAVEFORM WAVEFORM]
-                     [--octave-shift OCTAVE_SHIFT OCTAVE_SHIFT OCTAVE_SHIFT OCTAVE_SHIFT]
-                     [--volume-shift VOLUME_SHIFT VOLUME_SHIFT VOLUME_SHIFT VOLUME_SHIFT]
-                     [--mute MUTE MUTE MUTE MUTE]
+                     [--waveform [WAVEFORM [WAVEFORM ...]]]
+                     [--octave-shift [OCTAVE_SHIFT [OCTAVE_SHIFT ...]]]
+                     [--volume-shift [VOLUME_SHIFT [VOLUME_SHIFT ...]]]
+                     [--mute [MUTE [MUTE ...]]]
                      midiPath [cartPath]
     
     positional arguments:
@@ -37,20 +37,19 @@
                             PICO-8 SFX)
       --no-compact          Don't try to compact groups of repeated notes into
                             fewer notes played for longer
-      --waveform WAVEFORM WAVEFORM WAVEFORM WAVEFORM
+      --waveform [WAVEFORM [WAVEFORM ...]]
                             Specify which PICO-8 waveform (instrument) number to
-                            use for each channel
-      --octave-shift OCTAVE_SHIFT OCTAVE_SHIFT OCTAVE_SHIFT OCTAVE_SHIFT
-                            Specify the number of octaves to shift each PICO-8
-                            channel
-      --volume-shift VOLUME_SHIFT VOLUME_SHIFT VOLUME_SHIFT VOLUME_SHIFT
+                            use for each MIDI track
+      --octave-shift [OCTAVE_SHIFT [OCTAVE_SHIFT ...]]
+                            Specify the number of octaves to shift each MIDI track
+      --volume-shift [VOLUME_SHIFT [VOLUME_SHIFT ...]]
                             Specify a number to add to the volume of all notes in
-                            each PICO-8 channel (volume for each note will be
-                            limited to >= 1)
-      --mute MUTE MUTE MUTE MUTE
-                            Specify whether to "mute" each PICO-8 channel (1 =
-                            mute, 0 = do not mute). Notes for a muted channel will
-                            be excluded from the cartridge entirely
+                            each MIDI track (volume for each note will be limited
+                            to the range 1-7
+      --mute [MUTE [MUTE ...]]
+                            Specify whether to "mute" each MIDI track (1 = mute, 0
+                            = do not mute). Notes for a muted track will be
+                            excluded from the PICO-8 cartridge entirely
 
 
 ## Please Note
