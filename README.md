@@ -63,20 +63,26 @@ of MIDI file which has the following characterstics:
 
 * Each "voice" should be on a different track
   * This also means that MIDI file format Type 0 (the format that puts all
-    voices on only 1 track) is not currently supported
+    voices on only 1 track) is not currently supported.
 * Multiple notes should never be playing at the same time on the same track
 * The tempo should not change during the song
-* The song must have a maximum of 4 tracks
-  * Any tracks past the first 4 will be excluded from the import
+* The song should have a maximum of 4 tracks playing at once
+  * This program maps MIDI tracks to PICO-8 channels, so only 4 can exist at
+    the same time.  The program does dynamically (every SFX boundary) switch
+    which 4 MIDI tracks are playing, however, to try to accomodate more tracks:
+    if a MIDI track is *silent* during one (SFX-aligned) 32-note section, that
+    track will be skipped in favor of the next higher-numbered track(s) that
+    *are* currently playing notes.
 * The rhythms should be regular/quantized
   * This program will attempt to do a very basic level of quantization, but if
     the MIDI file has rhythms that are not very regular to begin with, the
-    result will not be good and tracks will get out of sync
+    result will not be good and tracks may get out of sync.
 * It should be short enough (and/or use a low enough rhythm resolution) to fit
   within the 64 SFX banks of the PICO-8
-  * The program will try to fit as much of the song in as it can, but it can't
-    perform miracles
+  * The program will try to fit as much of the song in as it can, including
+    re-using repeated SFXes, but it can't perform miracles.
 * It should not use any drums (channel 10)
+  * Right now, any MIDI notes on channel 10 will be discarded. 
 
 TLDR:
 If you use a MIDI with the right characteristics, this program can and does
@@ -92,11 +98,11 @@ be considered to be in an "work in progress" state.
 * [python3-midi-parser](https://github.com/akionux/python3-midi-parser)
 
 ## To Do List
-These are things that are totally unimplemented now but that I probably will
-try to implement in the future:
+These are things that are totally unimplemented now but that I may try to
+implement in the future:
 * An automatic best guess MIDI-instrument-to-PICO-8-waveform mapping table
-* Automatic or manual combination of multiple tracks into one (in places where
-  both are not playing notes at the same time)
+* Automatic combination of multiple tracks into one (in places where both are
+  not playing notes at the same time)
 * MIDI file type 0 support
 * Drums (channel 10) support
 * Tempo changes during the song
