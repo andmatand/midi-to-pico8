@@ -13,11 +13,11 @@
                      [--volume-shift [VOLUME_SHIFT [VOLUME_SHIFT ...]]]
                      [--mute [MUTE [MUTE ...]]]
                      midiPath [cartPath]
-    
+
     positional arguments:
       midiPath              The path to the MIDI file to be translated
       cartPath              The path to PICO-8 cartridge file to be generated
-    
+
     optional arguments:
       -h, --help            show this help message and exit
       --legato              Disable fadeout effect at the end of any notes (even
@@ -36,7 +36,10 @@
                             Change the start point in the MIDI file (in # of
                             PICO-8 SFX)
       --no-compact          Don't try to compact groups of repeated notes into
-                            fewer notes played for longer
+                            fewer notes played for longer (this compacting is
+                            sometimes slow, so using this flag will speed things
+                            up at the cost of possibly occupying more SFXes in the
+                            PICO-8 cart)
       --waveform [WAVEFORM [WAVEFORM ...]]
                             Specify which PICO-8 waveform (instrument) number to
                             use for each MIDI track

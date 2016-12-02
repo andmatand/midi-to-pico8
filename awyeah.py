@@ -78,8 +78,10 @@ argParser.add_argument(
         default=0)
 argParser.add_argument(
         '--no-compact',
-        help="Don't try to compact groups of repeated notes into fewer notes " +
-             "played for longer",
+        help="Don't try to compact groups of repeated notes into fewer " +
+             "notes played for longer (this compacting is sometimes slow, " +
+             "so using this flag will speed things up at the cost of " +
+             "possibly occupying more SFXes in the PICO-8 cart)",
          action='store_true')
 argParser.add_argument(
         '--waveform',
