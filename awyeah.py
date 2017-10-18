@@ -77,6 +77,11 @@ argParser.add_argument(
         type=int,
         default=0)
 argParser.add_argument(
+        '--sfx-offset',
+        help="Change the starting SFX slot in PICO-8",
+        type=int,
+        default=0)
+argParser.add_argument(
         '--no-compact',
         help="Don't try to compact groups of repeated notes into fewer " +
              "notes played for longer (this compacting is sometimes slow, " +
@@ -205,7 +210,7 @@ duplicateSfxSavingsCount = 0
 
 trackSfxIndex = 0
 musicIndex = 0
-sfxIndex = 0
+sfxIndex = args.sfx_offset
 while sfxIndex < PICO8_NUM_SFX:
     wroteAnythingToMusic = False
     channelIndex = 0

@@ -7,8 +7,8 @@
 ## How To Use
     usage: awyeah.py [-h] [--legato] [--staccato] [--no-fix-octaves]
                      [--no-quantize] [-t MIDI_BASE_TICKS] [-d NOTE_DURATION]
-                     [--start-offset START_OFFSET] [--no-compact]
-                     [--waveform [WAVEFORM [WAVEFORM ...]]]
+                     [--start-offset START_OFFSET] [--sfx-offset SFX_OFFSET]
+                     [--no-compact] [--waveform [WAVEFORM [WAVEFORM ...]]]
                      [--octave-shift [OCTAVE_SHIFT [OCTAVE_SHIFT ...]]]
                      [--volume-shift [VOLUME_SHIFT [VOLUME_SHIFT ...]]]
                      [--mute [MUTE [MUTE ...]]]
@@ -35,6 +35,8 @@
       --start-offset START_OFFSET
                             Change the start point in the MIDI file (in # of
                             PICO-8 SFX)
+      --sfx-offset SFX_OFFSET
+                            Change the starting SFX slot in PICO-8
       --no-compact          Don't try to compact groups of repeated notes into
                             fewer notes played for longer (this compacting is
                             sometimes slow, so using this flag will speed things
@@ -85,7 +87,7 @@ of MIDI file which has the following characterstics:
   * The program will try to fit as much of the song in as it can, including
     re-using repeated SFXes, but it can't perform miracles.
 * It should not use any drums (channel 10)
-  * Right now, any MIDI notes on channel 10 will be discarded. 
+  * Right now, any MIDI notes on channel 10 will be discarded.
 
 TLDR:
 If you use a MIDI with the right characteristics, this program can and does
