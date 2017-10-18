@@ -252,10 +252,9 @@ while sfxIndex < PICO8_NUM_SFX:
                     if octaveShift != 0:
                         pitch = note.pitch + (12 * octaveShift)
 
-                    # If there is a manual volume shift specified for this track
-                    volumeShift = songConfig['volumeShift'][t]
-                    volumeShift = clamp(note.volume, PICO8_MIN_VOLUME,
-                            PICO8_MAX_VOLUME)
+                    # Shift the volume as specified for this track
+                    volume += songConfig['volumeShift'][t]
+                    volume = clamp(volume, PICO8_MIN_VOLUME, PICO8_MAX_VOLUME)
 
                     wroteAnyNotesToSfx = True
                     noteIsInRange = (pitch >= 0 and pitch <= PICO8_MAX_PITCH)
