@@ -271,6 +271,23 @@ class Translator:
         return occupiedChannels
 
     @staticmethod
+    def find_first_audible_note_index(picoNoteLists):
+        for t, noteList in enumerate(picoNoteLists):
+            for n, note in enumerate(noteList):
+                if note.volume > 0:
+                    return n
+
+    @staticmethod
+    def trim_silence_from_beginning_of_pico_notes(picoNoteLists):
+        firstNoteIndex = Translator.find_first_audible_note_index(picoNoteLists)
+        if firstNoteIndex > 0:
+            # Trim empty notes off the beginning of all tracks
+            for i in range(0, len(picoNoteLists)):
+                picoNoteLists[i] = picoNoteLists[i][firstNoteIndex:]
+        print('trimmed {0} silent notes from the beginning'.format(
+            firstNoteIndex))
+
+    @staticmethod
     def trim_empty_notes_from_end_of_sfx_list(sfxes):
         if len(sfxes) > 0:
             # Trim empty notes off the end of the last Sfx
@@ -321,6 +338,10 @@ class Translator:
 
         # OPTIMIZATION TODO: Try to combine tracks if they have no overlapping
         # notes
+
+        # Trim silence from the beginning of the song as a whole
+        if self.settings.trimSilence:
+            Translator.trim_silence_from_beginning_of_pico_notes(picoNoteLists)
 
         # Split each noteList into "SFX"es (i.e. 32-note chunks)
         sfxLists = []

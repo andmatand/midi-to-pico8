@@ -9,7 +9,7 @@
                      [--no-quantize] [-t MIDI_BASE_TICKS] [-d NOTE_DURATION]
                      [--midi-offset MIDI_OFFSET] [--sfx-offset SFX_OFFSET]
                      [--pattern-offset PATTERN_OFFSET] [--no-compact]
-                     [--waveform [WAVEFORM [WAVEFORM ...]]]
+                     [--no-trim-silence] [--waveform [WAVEFORM [WAVEFORM ...]]]
                      [--octave-shift [OCTAVE_SHIFT [OCTAVE_SHIFT ...]]]
                      [--volume-shift [VOLUME_SHIFT [VOLUME_SHIFT ...]]]
                      [--mute [MUTE [MUTE ...]]]
@@ -45,6 +45,7 @@
                             sometimes slow, so using this flag will speed up
                             processing time at the cost of possibly occupying more
                             SFXes in the PICO-8 cart)
+      --no-trim-silence     Don't trim silence off the beginning
       --waveform [WAVEFORM [WAVEFORM ...]]
                             Specify which PICO-8 waveform (instrument) number to
                             use for each MIDI track

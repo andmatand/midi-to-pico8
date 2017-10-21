@@ -94,6 +94,10 @@ argParser.add_argument(
              "of possibly occupying more SFXes in the PICO-8 cart)",
          action='store_true')
 argParser.add_argument(
+        '--no-trim-silence',
+        help="Don't trim silence off the beginning",
+        action='store_true')
+argParser.add_argument(
         '--waveform',
         help="Specify which PICO-8 waveform (instrument) number to use for " +
              "each MIDI track",
@@ -134,6 +138,7 @@ translatorSettings.legato = args.legato
 translatorSettings.fixOctaves = not args.no_fix_octaves
 translatorSettings.noteDurationOverride = args.note_duration
 translatorSettings.sfxCompactor = not args.no_compact
+translatorSettings.trimSilence = not args.no_trim_silence
 
 # Set song-specific tracker-related settings from command-line arguments
 for i, value in enumerate(args.waveform):
