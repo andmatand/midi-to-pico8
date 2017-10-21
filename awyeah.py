@@ -72,13 +72,18 @@ argParser.add_argument(
              "from MIDI tempo)",
         type=int)
 argParser.add_argument(
-        '--start-offset',
+        '--midi-offset',
         help="Change the start point in the MIDI file (in # of PICO-8 SFX)",
         type=int,
         default=0)
 argParser.add_argument(
         '--sfx-offset',
         help="Change the starting SFX slot in PICO-8",
+        type=int,
+        default=0)
+argParser.add_argument(
+        '--pattern-offset',
+        help="Change the starting music pattern slot in PICO-8",
         type=int,
         default=0)
 argParser.add_argument(
@@ -156,16 +161,16 @@ tracks = translator.get_sfx_lists()
 # Make an empty PICO-8 catridge
 cart = game.Game.make_empty_game()
 lines = [
-    'music(0)\n',
+    'music(' + str(args.pattern_offset) + ')\n',
     'function _update()\n',
     'end']
 cart.lua.update_from_lines(lines)
 
-if args.start_offset > 0:
+if args.midi_offset > 0:
     # Remove SFXes from the beginning of each track, based on the "start
     # offset" parameter
     for t, track in enumerate(tracks):
-        tracks[t] = track[args.start_offset:]
+        tracks[t] = track[args.midi_offset:]
 
 def clamp(n, minn, maxn):
     return max(min(maxn, n), minn)
@@ -209,7 +214,7 @@ sfxDuplicateDetector = SfxDuplicateDetector()
 duplicateSfxSavingsCount = 0
 
 trackSfxIndex = 0
-musicIndex = 0
+musicIndex = args.pattern_offset
 sfxIndex = args.sfx_offset
 while sfxIndex < PICO8_NUM_SFX:
     wroteAnythingToMusic = False

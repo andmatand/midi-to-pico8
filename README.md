@@ -7,8 +7,9 @@
 ## How To Use
     usage: awyeah.py [-h] [--legato] [--staccato] [--no-fix-octaves]
                      [--no-quantize] [-t MIDI_BASE_TICKS] [-d NOTE_DURATION]
-                     [--start-offset START_OFFSET] [--sfx-offset SFX_OFFSET]
-                     [--no-compact] [--waveform [WAVEFORM [WAVEFORM ...]]]
+                     [--midi-offset MIDI_OFFSET] [--sfx-offset SFX_OFFSET]
+                     [--pattern-offset PATTERN_OFFSET] [--no-compact]
+                     [--waveform [WAVEFORM [WAVEFORM ...]]]
                      [--octave-shift [OCTAVE_SHIFT [OCTAVE_SHIFT ...]]]
                      [--volume-shift [VOLUME_SHIFT [VOLUME_SHIFT ...]]]
                      [--mute [MUTE [MUTE ...]]]
@@ -32,11 +33,13 @@
       -d NOTE_DURATION, --note-duration NOTE_DURATION
                             Override PICO-8 note duration setting (normally auto-
                             detected from MIDI tempo)
-      --start-offset START_OFFSET
+      --midi-offset MIDI_OFFSET
                             Change the start point in the MIDI file (in # of
                             PICO-8 SFX)
       --sfx-offset SFX_OFFSET
                             Change the starting SFX slot in PICO-8
+      --pattern-offset PATTERN_OFFSET
+                            Change the starting music pattern slot in PICO-8
       --no-compact          Don't try to compact groups of repeated notes into
                             fewer notes played for longer (this compacting is
                             sometimes slow, so using this flag will speed things
